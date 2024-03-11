@@ -1,2 +1,3 @@
 # satosa-idpyop
-OpenID Connect Provider as a front-end to SATOSA
+OpenID Provider or OAuth2 Authorization Server able to be a member of an OpenID federation.
+Implemented as a frontend to SATOSA.
