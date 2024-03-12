@@ -166,7 +166,7 @@ class EndPointWrapper(object):
         return response
 
     def clean_up(self):
-        _entity_type = self.upstream_get("entity_type")
+        _entity_type = self.upstream_get("attribute", "entity_type")
         _entity_type.persistence.flush_session_manager()
 
     def load_cdb(self, context: ExtendedContext, client_id: Optional[str] = None) -> dict:

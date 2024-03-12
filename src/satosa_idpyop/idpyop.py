@@ -141,6 +141,11 @@ class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
 
         session_manager = _ec.session_manager
         client_info = self.entity_type.persistence.restore_client_info(client_id)
+        if not client_info:
+            metadata = self.app.federation_entity.get_verified_metadata(client_id)
+            if metadata:
+                client_info = metadata['openid_relying_party']
+                _ec.cdb = {client_id: client_info}
         client_subject_type = client_info.get("subject_type", "public")
         scopes = orig_req.get("scopes", [])
         _session_id = session_manager.create_session(

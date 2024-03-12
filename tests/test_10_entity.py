@@ -1,6 +1,8 @@
 import os
 import re
+import shutil
 import sys
+import urllib.parse
 from typing import Optional
 
 # from openid4v.client.client_authn import ClientAuthenticationAttestation
@@ -16,12 +18,13 @@ from satosa.attribute_mapping import AttributeMapper
 from satosa.frontends.base import FrontendModule
 from satosa.internal import AuthenticationInformation
 from satosa.internal import InternalData
+from satosa.response import SeeOther
 from satosa.state import State
+
 from satosa_idpyop.core import ExtendedContext
 from satosa_idpyop.endpoint_wrapper import EndPointWrapper
 from satosa_idpyop.endpoint_wrapper import get_http_info
 from satosa_idpyop.idpyop import IdpyOPFrontend
-
 from tests import create_trust_chain_messages
 from tests import federation_setup
 from tests.users import USERS
@@ -46,10 +49,19 @@ def auth_req_callback_func(c, x):
     return x
 
 
+def clear_folder(folder):
+    for root, dirs, files in os.walk(f'{full_path(folder)}'):
+        for f in files:
+            os.unlink(os.path.join(root, f))
+        for d in dirs:
+            shutil.rmtree(os.path.join(root, d))
+
+
 class TestFrontEnd():
 
     @pytest.fixture(autouse=True)
     def federation_setup(self):
+        clear_folder("op_storage")
         # Dictionary with all the federation members
         self.entity = federation_setup()
 
@@ -70,7 +82,7 @@ class TestFrontEnd():
         context.state = State()
         return context
 
-    def setup_for_authn_response(self, context:ExtendedContext, frontend:FrontendModule, auth_req: Message):
+    def setup_for_authn_response(self, context: ExtendedContext, frontend: FrontendModule, auth_req: Message):
         context.state[frontend.name] = {"oidc_request": auth_req.to_urlencoded()}
 
         auth_info = AuthenticationInformation(
@@ -143,10 +155,12 @@ class TestFrontEnd():
 
         #  token endpoint
         # Create a new client attestation
+        assert isinstance(_auth_response, SeeOther)
+        _part = urllib.parse.parse_qs(_auth_response.message.split("?")[1])
 
         token_request = {
             'grant_type': 'authorization_code',
-            'code': _auth_response["response_args"]["code"],
+            'code': _part["code"][0],
             'redirect_uri': authz_request["redirect_uri"],
             'client_id': client.entity_id,
             'state': _state,
@@ -158,6 +172,14 @@ class TestFrontEnd():
         # ---- Switch to the server side. The PID issuer
 
         func = self._find_endpoint(frontend, "token")
+        context.http_info = {
+            "headers": {
+                "headers": req_info["headers"]
+            },
+            "method": req_info["method"],
+            "url": req_info["url"]
+        }
+
         _http_info = get_http_info(context)
         _parsed_req = func.parse_request(request=req_info["request"], http_info=_http_info)
         _token_response = func.process_request(context, _parsed_req, http_info=_http_info)

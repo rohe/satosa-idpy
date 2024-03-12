@@ -22,6 +22,9 @@ class IdpyOPEndpoints(object):
 
     def __init__(self, app, auth_req_callback_func, converter):
         self.app = app
+        _etype = [v for k,v in list(app.server.items()) if k != "federation_entity"]
+        # Assumes there is only one guise except for the federation_entity
+        self.entity_type = _etype[0]
         kwargs = {"auth_req_callback_func": auth_req_callback_func, "converter":converter}
         for entity_type, item in app.server.items():
             if entity_type == "federation_entity":
