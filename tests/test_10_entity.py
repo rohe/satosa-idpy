@@ -135,6 +135,9 @@ class TestFrontEnd():
         assert set(req_info.keys()) == {"method", "request", "url"}
 
         context.request = req_info["request"]
+        context.request_uri = req_info["url"]
+        context.request_method = req_info["method"]
+        context.http_info = {"headers": {}}
 
         # ---- Switch to the server side. The SATOSA frontend
 

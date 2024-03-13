@@ -226,7 +226,7 @@ class EndPointWrapper(object):
             _federation_entity = self.upstream_get("federation_entity")
             trust_chains = get_verified_trust_chains(_federation_entity, client_id)
             if trust_chains:
-                _federation_entity.store_trust_chain(client_id, trust_chains)
+                _federation_entity.store_trust_chains(client_id, trust_chains)
                 client_info = trust_chains[0].metadata["openid_relying_party"]
                 _ec.cdb = {client_id: client_info}
             else:
