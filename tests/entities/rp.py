@@ -4,6 +4,7 @@ from typing import Optional
 from fedservice.defaults import LEAF_ENDPOINTS
 from fedservice.utils import make_federation_combo
 from idpyoidc.client.defaults import DEFAULT_KEY_DEFS
+from idpyoidc.client.client_auth import CLIENT_AUTHN_METHOD
 
 
 def main(entity_id: str,
@@ -14,27 +15,23 @@ def main(entity_id: str,
     _conf = {
         "client_type": "oidc",
         "keys": {"key_defs": DEFAULT_KEY_DEFS},
-        "client_secret": "abcdefghijklmnop",
-        "client_authn_methods": ["bearer_header"],
+        "client_authn_methods": CLIENT_AUTHN_METHOD,
         "preference": {
             "response_types_supported": ["code"],
-            "token_endpoint_auth_methods_supported": ["client_secret_post"],
-        },
-        "provider_info": {
-            "authorization_endpoint": "https://rp.example.com/authorization",
-            "token_endpoint": "https://rp.example.com/token",
-            "userinfo_endpoint": "https://rp.example.com/userinfo",
+            "token_endpoint_auth_methods_supported": ["private_key_jwt"],
         },
         "redirect_uris": ["https://rp.example.com/authz_cb"],
         "userinfo_request_method": "GET",
         "services": {
+            "discovery": {
+                "class": "idpyoidc.client.oidc.provider_info_discovery.ProviderInfoDiscovery"
+            },
             "authorization": {"class": "idpyoidc.client.oidc.authorization.Authorization"},
             "access_token": {"class": "idpyoidc.client.oidc.access_token.AccessToken"},
             "userinfo": {"class": "idpyoidc.client.oidc.userinfo.UserInfo"},
         }
     }
     _conf["client_id"] = entity_id
-    _conf["issuer"] = entity_id
 
     rp = make_federation_combo(
         entity_id,

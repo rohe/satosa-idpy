@@ -5,11 +5,11 @@ from urllib.parse import parse_qs
 from urllib.parse import urlencode
 from urllib.parse import urlparse
 
-import satosa
 from idpyoidc.message.oauth2 import AuthorizationErrorResponse
 from idpyoidc.message.oauth2 import ResponseMessage
 from idpyoidc.server.authn_event import create_authn_event
 from openid4v.message import AuthorizationRequest
+import satosa
 
 from . import EndPointWrapper
 from . import get_http_info
@@ -35,7 +35,8 @@ logger = logging.getLogger(__name__)
 class AuthorizationEndpointWrapper(EndPointWrapper):
     wraps = ['authorization']
 
-    def __init__(self, upstream_get, endpoint, auth_req_callback_func, converter, **kwargs):  # pragma: no cover
+    def __init__(self, upstream_get, endpoint, auth_req_callback_func, converter,
+                 **kwargs):  # pragma: no cover
         EndPointWrapper.__init__(self, upstream_get=upstream_get, endpoint=endpoint, **kwargs)
         self.auth_req_callback_func = auth_req_callback_func
         self.converter = converter
@@ -76,7 +77,7 @@ class AuthorizationEndpointWrapper(EndPointWrapper):
             self.clean_up()
             return JsonResponse(parse_req._dict)
 
-        _entity_type = self.upstream_get("attribute","entity_type")
+        _entity_type = self.upstream_get("attribute", "entity_type")
         _entity_type.persistence.restore_state(parse_req, http_info)
 
         context.state[self.endpoint.name] = {"oidc_request": context.request}
@@ -151,7 +152,8 @@ class AuthorizationEndpointWrapper(EndPointWrapper):
 
         authn_event = create_authn_event(
             uid=sub,
-            salt=base64.b64encode(os.urandom(self.upstream_get("attribute", "app").salt_size)).decode(),
+            salt=base64.b64encode(
+                os.urandom(self.upstream_get("attribute", "app").salt_size)).decode(),
             authn_info=internal_resp.auth_info.auth_class_ref,
             # TODO: authn_time=datetime.fromisoformat(
             #  internal_resp.auth_info.timestamp).timestamp(),

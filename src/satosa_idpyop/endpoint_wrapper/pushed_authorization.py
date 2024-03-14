@@ -15,7 +15,7 @@ class PushedAuthorizationEndpointWrapper(EndPointWrapper):
     wraps = ["pushed_authorization"]
 
     def __call__(self, context: ExtendedContext):
-        _entity_type = self.upstream_get('entity_type')
+        _entity_type = self.upstream_get("attribute", "entity_type")
         _http_info = get_http_info(context)
         _entity_type.persistence.restore_state(context.request, _http_info)
 

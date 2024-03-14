@@ -13,5 +13,5 @@ class JWKSEndpointWrapper(EndPointWrapper):
 
     def __call__(self, *args, **kwargs):
         logger.debug("At the JWKS endpoint")
-        jwks = self.upstream_get("guise").context.keyjar.export_jwks("")
+        jwks = self.upstream_get("attribute", "entity_type").context.keyjar.export_jwks("")
         return JsonResponse(jwks)

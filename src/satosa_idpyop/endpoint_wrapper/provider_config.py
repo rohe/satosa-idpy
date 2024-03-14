@@ -8,13 +8,12 @@ from ..endpoint_wrapper import EndPointWrapper
 
 logger = logging.getLogger(__name__)
 
-
-class UserinfoEndpointWrapper(EndPointWrapper):
-    wraps = ["userinfo"]
+class ProviderConfigEndpointWrapper(EndPointWrapper):
+    wraps = ["provider_config"]
 
     def __call__(self, context, *args, **kwargs):
         _http_info = get_http_info(context)
-        _entity_type = self.upstream_get("attribute", "entity_type")
+        _entity_type = self.upstream_get("attribute","entity_type")
         _entity_type.persistence.restore_state(context.request, _http_info)
 
         logger.debug(f"request: {context.request}")

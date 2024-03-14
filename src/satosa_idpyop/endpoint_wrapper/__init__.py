@@ -232,7 +232,14 @@ class EndPointWrapper(object):
             else:
                 raise UnknownClient(client_id)
 
-        # TODO - consider to handle also basic auth for clients ...
+        _jwks_uri = client_info.get("jwks_uri", None)
+        if _jwks_uri:
+            _ec.keyjar.load_keys(client_id, jwks_uri=_jwks_uri)
+        else:
+            _jwks = client_info.get("jwks", None)
+            if _jwks:
+                _ec.keyjar.import_jwks(_jwks, client_id)
+
         # BUT specs are against!
         # https://openid.net/specs/openid-connect-registration-1_0.html#ReadRequest
         _rat = client_info.get("registration_access_token")

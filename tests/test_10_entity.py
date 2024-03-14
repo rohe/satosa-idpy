@@ -42,7 +42,7 @@ INTERNAL_ATTRIBUTES = {
     "attributes": {"mail": {"saml": ["email"], "openid": ["email"]}}
 }
 
-BASE_URL = "https://rp.example.com"
+OP_BASE_URL = "https://op.example.com"
 
 
 def auth_req_callback_func(c, x):
@@ -61,18 +61,18 @@ class TestFrontEnd():
 
     @pytest.fixture(autouse=True)
     def federation_setup(self):
-        clear_folder("op_storage")
         # Dictionary with all the federation members
         self.entity = federation_setup()
 
     @pytest.fixture
     def frontend(self):
+        clear_folder("op_storage")
         frontend_config = load_yaml_config("satosa_conf.yaml")
 
         _keys = self.entity["trust_anchor"].keyjar.export_jwks()
         frontend_config["op"]["server_info"]["trust_anchors"]["https://ta.example.org"]["keys"] = _keys["keys"]
         frontend = IdpyOPFrontend(auth_req_callback_func, INTERNAL_ATTRIBUTES,
-                                  frontend_config, BASE_URL, "idpyop_frontend")
+                                  frontend_config, OP_BASE_URL, "idpyop_frontend")
         url_map = frontend.register_endpoints([])
         return frontend
 
@@ -106,6 +106,77 @@ class TestFrontEnd():
         assert _payload["authority_hints"] == ["https://ta.example.org"]
         assert set(_payload["metadata"].keys()) == {"federation_entity", "openid_provider"}
 
+    def _discovery(self, client, context, frontend):
+        # client side
+        _provider_config_service = client.get_service("provider_info")
+        req_info = _provider_config_service.get_request_parameters()
+
+        # Server side
+        context.request = {}
+        context.request_uri = req_info["url"]
+        context.request_method = req_info["method"]
+        context.http_info = {"headers": {}}
+
+        func = self._find_endpoint(frontend, ".well-known/openid-configuration")
+        response = func(context)
+
+        # back at the client side
+        resp = _provider_config_service.parse_response(response.message)
+        jwks_func = self._find_endpoint(frontend, "static/jwks.json")
+        _keys = jwks_func()
+        with responses.RequestsMock() as rsps:
+            rsps.add("GET", "https://op.example.com/static/jwks.json",
+                     body=_keys.message,
+                     adding_headers={"Content-Type": "application/json"}, status=200)
+
+            _provider_config_service.update_service_context(resp)
+
+    def _token(self, client, context, frontend, response_part, state, authz_request, **kwargs):
+        token_request = {
+            'grant_type': 'authorization_code',
+            'code': response_part["code"][0],
+            'redirect_uri': authz_request["redirect_uri"],
+            'client_id': client.entity_id,
+            'state': state,
+        }
+
+        _service = client.get_service("accesstoken")
+        req_info = _service.get_request_parameters(token_request,
+                                                   authn_method="private_key_jwt",
+                                                   **kwargs)
+
+        # ---- Switch to the server side.
+
+        context.http_info = req_info["headers"]
+        context.request_method= req_info["method"]
+        context.request_uri = req_info["url"]
+        context.request = req_info["request"]
+
+        func = self._find_endpoint(frontend, "token")
+
+        response = func(context)
+
+        # back at the client side
+        resp = _service.parse_response(response.message)
+        _service.update_service_context(resp, state)
+
+    def _userinfo(self, client, context, frontend, **kwargs):
+        userinfo_request = {}
+        _service = client.get_service("userinfo")
+        _req_info = _service.get_request_parameters(userinfo_request, **kwargs)
+
+        # ---- Switch to the server side. The PID issuer
+
+        context.request = {}
+        context.request_uri = _req_info["url"]
+        context.request_method = _req_info["method"]
+        context.http_info = _req_info["headers"]
+
+        func = self._find_endpoint(frontend, "userinfo")
+
+        response = func(context)
+        return response.message
+
     def _find_endpoint(self, frontend, endpoint_path) -> Optional[EndPointWrapper]:
         for pattern, endp in frontend.endpoints:
             if re.search(pattern, endpoint_path):
@@ -114,15 +185,15 @@ class TestFrontEnd():
 
     def test_flow(self, frontend, context):
         client = self.entity["relying_party"]["openid_relying_party"]
-
-        _secret = client.context.get_preference("client_secret")
+        client.context.issuer = OP_BASE_URL
+        self._discovery(client, context, frontend)
 
         # Create authorization request
         authz_request = {
             'response_type': 'code',
             'client_id': client.entity_id,
-            'client_secret': _secret,
             "redirect_uri": client.context.claims.get_preference("redirect_uris")[0],
+            "nonce": rndstr()
         }
 
         _state = rndstr()
@@ -161,50 +232,8 @@ class TestFrontEnd():
         assert isinstance(_auth_response, SeeOther)
         _part = urllib.parse.parse_qs(_auth_response.message.split("?")[1])
 
-        token_request = {
-            'grant_type': 'authorization_code',
-            'code': _part["code"][0],
-            'redirect_uri': authz_request["redirect_uri"],
-            'client_id': client.entity_id,
-            'state': _state,
-        }
+        self._token(client, context, frontend, _part, _state, authz_request)
 
-        _service = client.get_service("accesstoken")
-        req_info = _service.get_request_parameters(token_request, **kwargs)
-
-        # ---- Switch to the server side. The PID issuer
-
-        func = self._find_endpoint(frontend, "token")
-        context.http_info = {
-            "headers": {
-                "headers": req_info["headers"]
-            },
-            "method": req_info["method"],
-            "url": req_info["url"]
-        }
-
-        _http_info = get_http_info(context)
-        _parsed_req = func.parse_request(request=req_info["request"], http_info=_http_info)
-        _token_response = func.process_request(context, _parsed_req, http_info=_http_info)
-        assert _token_response
-        _service.upstream_get("context").cstate.update(_state, _token_response["response_args"])
-
-        userinfo_request = {}
-        _service = client.get_service("userinfo")
-        _req_info = _service.get_request_parameters(userinfo_request, **kwargs)
-
-        assert req_info
-
-        # ---- Switch to the server side. The PID issuer
-
-        func = self._find_endpoint(frontend, "userinfo")
-
-        _http_info = {
-            "headers": req_info["headers"],
-            "method": req_info["method"],
-            "url": req_info["url"],
-        }
-
-        _parsed_req = func.parse_request(request=req_info["request"], http_info=_http_info)
-        response = func.process_request(context, _parsed_req, http_info=_http_info)
+        response = self._userinfo(client, context, frontend, state=_state)
         assert response
+

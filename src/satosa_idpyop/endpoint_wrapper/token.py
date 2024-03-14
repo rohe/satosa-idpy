@@ -1,5 +1,3 @@
-from urllib.parse import urlencode
-
 from idpyoidc.message.oauth2 import TokenErrorResponse
 from idpyoidc.message.oidc import AccessTokenRequest
 from idpyoidc.server.exception import NoSuchGrant
@@ -32,7 +30,7 @@ class TokenEndpointWrapper(EndPointWrapper):
 
         raw_request = AccessTokenRequest(**context.request)
 
-        _entity_type = self.upstream_get("entity_type")
+        _entity_type = self.upstream_get("attribute", "entity_type")
         # in token endpoint we cannot parse a request without having loaded cdb and session first
         try:
             _entity_type.persistence.restore_state(raw_request, _http_info)
@@ -68,4 +66,3 @@ class TokenEndpointWrapper(EndPointWrapper):
         response = JsonResponse(proc_req["response_args"])
         self.clean_up()
         return response
-

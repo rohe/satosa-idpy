@@ -1,6 +1,6 @@
 op:
   server_info:
-    entity_id: 'https://127.0.0.1:6666'
+    entity_id: 'https://op.example.com'
     persistence:
       class: satosa_idpyop.persistence.federation_entity.FEPersistence
       kwargs:
@@ -120,6 +120,9 @@ op:
               uri_path: static/jwks.json
               public_path: static/jwks.json
             endpoint:
+              provider_config:
+                path: ".well-known/openid-configuration"
+                class: fedservice.appserver.oidc.provider_config.ProviderConfiguration
               authorization:
                 path: authorization
                 class: fedservice.appserver.oidc.authorization.Authorization
@@ -148,6 +151,10 @@ op:
                 path: userinfo
                 class: idpyoidc.server.oidc.userinfo.UserInfo
             template_dir: template
+            userinfo:
+              class: idpyoidc.server.user_info.UserInfo
+              kwargs:
+                db_file: users.json
             session_params:
               encrypter:
                 kwargs:
