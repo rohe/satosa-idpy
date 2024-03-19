@@ -18,16 +18,17 @@ class PushedAuthorizationEndpointWrapper(EndPointWrapper):
         _entity_type = self.upstream_get("attribute", "entity_type")
         _http_info = get_http_info(context)
         _entity_type.persistence.restore_state(context.request, _http_info)
+        self.load_cdb(context)
 
         logger.debug(f"Incoming request: {context.request}")
         self.pre_parse_request(context)
         parse_req = self.parse_request(context.request, http_info=_http_info)
         parse_req = self.post_parse_request(context=context, parse_req=parse_req)
 
-        proc_req = self.process_request(context, parse_req, _http_info)
-        if isinstance(proc_req, JsonResponse):
+        proc_resp = self.process_request(context, parse_req, _http_info)
+        if isinstance(proc_resp, JsonResponse):
             self.clean_up()  # pragma: no cover
-            return proc_req
+            return proc_resp
 
         # The only thing that should have changed on the application side
         _entity_type.persistence.store_client_info(parse_req["client_id"])
@@ -36,8 +37,8 @@ class PushedAuthorizationEndpointWrapper(EndPointWrapper):
         _fed_entity = self.upstream_get("federation_entity")
         _fed_entity.persistence.store_state()
 
-        logger.debug(f"PAR response: {proc_req}")
-        response = JsonResponse(proc_req["http_response"])
+        logger.debug(f"PAR response: {proc_resp}")
+        response = JsonResponse(proc_resp["http_response"])
         self.clean_up()
         return response
 

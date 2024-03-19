@@ -166,9 +166,7 @@ class IdpyOPUtils(object):
             client_info = _persistence.restore_client_info_by_basic_auth(
                 context.request_authorization) or {}
             client_id = client_info.get("client_id")
-        elif context.request and context.request.get(
-                "client_assertion"
-        ):  # pragma: no cover
+        elif context.request and context.request.get("client_assertion"):
             # this is not a validation just a client detection
             # validation is demanded later by idpy_oidc parse_request
 

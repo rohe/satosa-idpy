@@ -1,0 +1,201 @@
+op:
+  server_info:
+    entity_id: 'https://op.example.com'
+    persistence:
+      class: satosa_idpyop.persistence.federation_entity.FEPersistence
+      kwargs:
+        storage:
+          class: "satosa_idpyop.core.storage.file.FilesystemDB"
+          kwargs:
+            fdir: "fe_storage"
+            key_conv: "idpyoidc.util.Base64"
+            value_conv: "idpyoidc.util.JSON"
+    key_config:
+      key_defs:
+        - type: "RSA"
+          use: [ "sig" ]
+        - type: "EC"
+          crv: "P-256"
+          use: [ "sig" ]
+    preference:
+      organization_name: The OP operator
+      homepage_uri: https://op.example.com
+      contacts: operations@op.example.com
+    authority_hints:
+      - "https://ta.example.org"
+    endpoints:
+      entity_configuration:
+        path: ".well-known/openid-federation"
+        class: 'fedservice.entity.server.entity_configuration.EntityConfiguration'
+    trust_anchors:
+      https://ta.example.org:
+        keys:
+          - kty: 'RSA'
+            use: 'sig'
+            kid: 'OGFxMFJ6LXJFM3dWTWlzLXBHcUwydGY2Z3Vhb2hObXhkN0lIVllkLVJaSQ'
+            n: 'qeAZsdVwA90eNL-HJ9u3wsb_6pmz4GAkuLFtcYH2HzHHg7EIANOw9avhd3rzPgIpjjWFqFO6s3jiU_fSpFSadOKDZVPVnMc1m1PjmsnZinhjEBadKm9m1krvy2iDqMeJFQpjgSZ_Jwki2KCNuny_ESoyvQ5YJF50_HHhxxVCEi7h-Mta18ToQ5XEmCj1Sqcipjg55n_X8xUVL_L_OdU75_ICKMnTgFRXVNG5JQ_BQQoBenqBdIyhRMvZESLCRJoeScqByfrgEyBnrLac7P11aU3mnxCybmrBK98dKDkDRgONd3FRpjsF3D1lc_NA_U-i8sFkH_K998i1ykokwC6jPQ'
+            e: 'AQAB'
+          - kty: 'EC'
+            use: 'sig'
+            kid: 'dWpnd1A4NndNUTEzZlFfV2NsVjhnRE1zYTVlQ2xEZTdDR0U5SDNHX185VQ'
+            crv: 'P-256'
+            x: '2WQD73J1HcMQs8gZq43o2YvwgbKm1j_SHJgseUgniko'
+            y: 'Pn_HidM6WjUJhAnAYKTdNaLVcM2ChgUgQgZXW4lY6bs'
+    entity_type:
+      openid_provider:
+        class: fedservice.appserver.ServerEntity
+        kwargs:
+          server_type: oidc
+          config:
+            persistence:
+              class: satosa_idpyop.persistence.openid_provider.OPPersistence
+              kwargs:
+                storage:
+                  class: "satosa_idpyop.core.storage.file.FilesystemDB"
+                  kwargs:
+                    fdir: "op_storage"
+                    key_conv: "idpyoidc.util.Base64"
+                    value_conv: "idpyoidc.util.JSON"
+            httpc_params:
+              verify: false
+              timeout: 1
+            preference:
+              subject_types_supported:
+                - public
+                - pairwise
+                - ephemeral
+              grant_types_supported:
+                - authorization_code
+                - implicit
+                - urn:ietf:params:oauth:grant-type:jwt-bearer
+                - refresh_token
+            token_handler_args:
+              jwks_def:
+                private_path: private/token_jwks.json
+                read_only: false
+                key_defs:
+                  - type: oct
+                    bytes: '24'
+                    use:
+                      - enc
+                    kid: code
+              code:
+                lifetime: 900
+                kwargs:
+                  crypt_conf:
+                    kwargs:
+                      iterations: 1
+                      keys:
+                        key_defs:
+                          - kid: 'password'
+                            type: 'OCT'
+                            use:
+                              - 'enc'
+                          - kid: 'salt'
+                            type: 'OCT'
+                            use:
+                              - 'enc'
+              token:
+                class: idpyoidc.server.token.jwt_token.JWTToken
+                kwargs:
+                  lifetime: 3600
+                  add_claims_by_scope: true
+                  aud:
+                    - https://example.org/appl
+              id_token:
+                class: idpyoidc.server.token.id_token.IDToken
+                kwargs:
+                  base_claims:
+                    email:
+                      essential: true
+                    email_verified:
+                      essential: true
+            keys:
+              key_defs:
+                - type: "RSA"
+                  use: [ "sig" ]
+                - type: "EC"
+                  crv: "P-256"
+                  use: [ "sig" ]
+              uri_path: static/jwks.json
+              public_path: static/jwks.json
+            endpoint:
+              provider_config:
+                path: ".well-known/openid-configuration"
+                class: fedservice.appserver.oidc.provider_config.ProviderConfiguration
+              authorization:
+                path: authorization
+                class: fedservice.appserver.oidc.authorization.Authorization
+                kwargs:
+                  response_modes_supported:
+                    - query
+                    - fragment
+                    - form_post
+                  claim_types_supported:
+                    - normal
+                    - aggregated
+                    - distributed
+                  claims_parameter_supported: true
+                  request_parameter_supported: true
+                  request_uri_parameter_supported: true
+              pushed_authorization:
+                path: pushed_authorization
+                class: idpyoidc.server.oauth2.pushed_authorization.PushedAuthorization
+                kwargs:
+                  client_authn_method:
+                    - client_secret_post
+                    - client_secret_basic
+                    - client_secret_jwt
+                    - private_key_jwt
+              token:
+                path: token
+                class: idpyoidc.server.oidc.token.Token
+                kwargs:
+                  client_authn_method:
+                    - client_secret_post
+                    - client_secret_basic
+                    - client_secret_jwt
+                    - private_key_jwt
+              userinfo:
+                path: userinfo
+                class: idpyoidc.server.oidc.userinfo.UserInfo
+            template_dir: template
+            userinfo:
+              class: idpyoidc.server.user_info.UserInfo
+              kwargs:
+                db_file: users.json
+            session_params:
+              encrypter:
+                kwargs:
+                  iterations: 1
+                  keys:
+                    key_defs:
+                      -
+                        kid: 'password'
+                        type: 'OCT'
+                        use:
+                          - 'enc'
+                      -
+                        kid: 'salt'
+                        type: 'OCT'
+                        use:
+                          - 'enc'
+            authz:
+              class: idpyoidc.server.authz.AuthzHandling
+              kwargs:
+                grant_config:
+                  usage_rules:
+                    authorization_code:
+                      supports_minting:
+                        - access_token
+                        - refresh_token
+                      max_usage: 1
+                      expires_in: 120  # 2 minutes
+                    access_token:
+                      expires_in: 3600  # An hour
+                    refresh_token:
+                      supports_minting:
+                        - access_token
+                        - refresh_token
+                      expires_in: 86400  # One day
+                  expires_in: 2592000  # a month, 30 days

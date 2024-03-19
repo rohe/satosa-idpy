@@ -96,7 +96,7 @@ class EndPointWrapper(object):
 
     def process_request(self, context: Context, parse_req, http_info):
         """
-        Processes an OAuth2/OIDC request, used by endpoint views
+        Processes an OAuth2/OIDC request
         """
         if isinstance(parse_req, JsonResponse):
             self.clean_up()

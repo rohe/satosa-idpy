@@ -100,6 +100,7 @@ def execute_function(function, **kwargs):
 TA_ID = "https://ta.example.org"
 INT_ID = "https://intermediate.example.org"
 RP_ID = "https://rp.example.org"
+RP_PA_ID = "https://rp_pa.example.org"
 
 def federation_setup():
 
@@ -162,6 +163,77 @@ def federation_setup():
     }
 
     rp = execute_function("entities.rp.main", **kwargs)
+
+    trust_anchor.server.subordinate[RP_ID] = {
+        "jwks": rp['federation_entity'].keyjar.export_jwks(),
+        'authority_hints': [TA_ID],
+        "registration_info": {"entity_types": ["federation_entity", "openid_relying_party"]},
+    }
+    entity["relying_party"] = rp
+
+    return entity
+
+def federation_pushed_authn_setup():
+
+    entity = {}
+
+    ##################
+    # TRUST ANCHOR
+    ##################
+
+    kwargs = {
+        "entity_id": TA_ID,
+        "preference": {
+            "organization_name": "The example federation operator",
+            "homepage_uri": "https://ta.example.org",
+            "contacts": "operations@ta.example.com"
+        }
+    }
+    trust_anchor = execute_function('entities.ta.main', **kwargs)
+    trust_anchors = {TA_ID: trust_anchor.keyjar.export_jwks()}
+    entity["trust_anchor"] = trust_anchor
+
+    ########################################
+    # Intermediate
+    ########################################
+
+    kwargs = {
+        "entity_id": INT_ID,
+        "preference": {
+            "organization_name": "An intermediate",
+            "homepage_uri": "https://intermediate.example.com",
+            "contacts": "operations@intermediate.example.com"
+        },
+        "authority_hints": [TA_ID],
+        "trust_anchors": trust_anchors
+    }
+    intermediate = execute_function("entities.intermediate.main", **kwargs)
+
+    trust_anchor.server.subordinate[INT_ID] = {
+        "jwks": intermediate.keyjar.export_jwks(),
+        'authority_hints': [TA_ID],
+        "registration_info": {"entity_types": ["federation_entity"]},
+    }
+    entity["Intermediate"] = intermediate
+
+
+    #########################################
+    # Relying Party
+    #########################################
+
+
+    kwargs = {
+        "entity_id": RP_ID,
+        "preference": {
+            "organization_name": "The OpenID RP",
+            "homepage_uri": "https://rp.example.com",
+            "contacts": "operations@rp.example.com"
+        },
+        "authority_hints": [TA_ID],
+        "trust_anchors": trust_anchors
+    }
+
+    rp = execute_function("entities.rp_pa.main", **kwargs)
 
     trust_anchor.server.subordinate[RP_ID] = {
         "jwks": rp['federation_entity'].keyjar.export_jwks(),

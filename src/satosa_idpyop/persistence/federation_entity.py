@@ -67,14 +67,15 @@ class FEPersistence(object):
     def store_trust_chains(self):
         _entity = self.upstream_get("unit")
         if _entity.trust_chain:
-            _chains = [tc.dump() for tc in _entity.trust_chain]
-            self.storage.store(information_type="trust_chain", value=_chains)
+            for leaf, chain in _entity.trust_chain.items():
+                _chains = [tc.dump() for tc in chain]
+                self.storage.store(information_type="trust_chain", value=_chains, key=leaf)
 
     def restore_trust_chains(self):
-        _chains = self.storage.fetch(information_type="trust_chain")
-        if _chains:
+        for entity_id in self.storage.keys_by_information_type("trust_chain"):
+            _chains = self.storage.fetch(information_type="trust_chain", key=entity_id)
             _entity = self.upstream_get("unit")
-            _entity.trust_chain = [TrustChain(**v) for v in _chains]
+            _entity.store_trust_chains(entity_id, [TrustChain().load(v) for v in _chains])
 
     def reset_state(self):
         _entity = self.upstream_get("unit")

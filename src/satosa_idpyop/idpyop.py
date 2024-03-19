@@ -9,11 +9,11 @@ from urllib.parse import parse_qs
 from urllib.parse import urlencode
 from urllib.parse import urlparse
 
-import satosa
 from fedservice.appserver import ServerEntity
 from idpyoidc.message.oauth2 import AuthorizationErrorResponse
 from idpyoidc.message.oauth2 import ResponseMessage
 from idpyoidc.server.authn_event import create_authn_event
+import satosa
 from satosa.response import SeeOther
 from satosa_openid4vci.core import ExtendedContext
 from satosa_openid4vci.core.claims import combine_claim_values
@@ -35,7 +35,7 @@ from .core.application import idpy_oidc_application as idpy_oidc_app
 logger = logging.getLogger(__name__)
 
 IGNORED_HEADERS = ["cookie", "user-agent"]
-
+ALLOW_FEDERATION_RP = True
 
 class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
     """
@@ -52,7 +52,7 @@ class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
         FrontendModule.__init__(self, auth_req_callback_func, internal_attributes, base_url, name)
         self.app = idpy_oidc_app(conf)
         # Static for now
-        _servers = [v for k,v in self.app.server.items() if isinstance(v, ServerEntity)]
+        _servers = [v for k, v in self.app.server.items() if isinstance(v, ServerEntity)]
         # Should only be one
         self.entity_type = _servers[0]
         IdpyOPEndpoints.__init__(self, self.app, auth_req_callback_func, self.converter)
@@ -136,16 +136,30 @@ class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
             uid=sub,
             salt=base64.b64encode(os.urandom(self.app.salt_size)).decode(),
             authn_info=internal_resp.auth_info.auth_class_ref,
-            # TODO: authn_time=datetime.fromisoformat(internal_resp.auth_info.timestamp).timestamp(),
+            # TODO: authn_time=datetime.fromisoformat(
+            #  internal_resp.auth_info.timestamp).timestamp(),
         )
 
         session_manager = _ec.session_manager
         client_info = self.entity_type.persistence.restore_client_info(client_id)
         if not client_info:
-            metadata = self.app.federation_entity.get_verified_metadata(client_id)
-            if metadata:
-                client_info = metadata['openid_relying_party']
-                _ec.cdb = {client_id: client_info}
+            if ALLOW_FEDERATION_RP:
+                # This is a third variant besides explicit and automatic.
+                # You allow the RP to speak to you because it's a member of the federation
+                metadata = self.app.federation_entity.get_verified_metadata(client_id)
+                if metadata:
+                    client_info = metadata['openid_relying_party']
+                    _ec.cdb = {client_id: client_info}
+
+        if not client_info:
+            response = JsonResponse(
+                {
+                    "error": "unauthorized_client",
+                    "error_description": "Unknown client"},
+                status="403")
+            self.clean_up()
+            return response
+
         client_subject_type = client_info.get("subject_type", "public")
         scopes = orig_req.get("scopes", [])
         _session_id = session_manager.create_session(
@@ -191,7 +205,8 @@ class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
             "return_uri": _args.get("return_uri")
         }
 
-        info = endpoint.do_response(response_args=_args.get("response_args"), request=orig_req, **kwargs)
+        info = endpoint.do_response(response_args=_args.get("response_args"), request=orig_req,
+                                    **kwargs)
 
         logger.debug(f"Response from OCI: {info}")
 
