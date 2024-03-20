@@ -20,8 +20,10 @@ class UserinfoEndpointWrapper(EndPointWrapper):
         logger.debug(f"request: {context.request}")
         logger.debug(f"https_info: {_http_info}")
         parse_req = self.parse_request(context.request, http_info=_http_info)
+        _claims = _entity_type.persistence.load_claims(parse_req["client_id"])
         logger.debug(f"parse_req: {parse_req}")
-        proc_req = self.process_request(context.request, parse_req, _http_info)
+        proc_req = self.process_request(context.request, parse_req, _http_info,
+                                        extra_claims=_claims)
         if isinstance(proc_req, JsonResponse):
             self.clean_up()  # pragma: no cover
             return proc_req

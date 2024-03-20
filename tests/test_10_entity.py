@@ -227,11 +227,10 @@ class TestFrontEnd():
         internal_response = self.setup_for_authn_response(context, frontend, AuthorizationRequest(**authz_request))
         _auth_response = frontend.handle_authn_response(context, internal_response)
 
-        #  token endpoint
-        # Create a new client attestation
         assert isinstance(_auth_response, SeeOther)
         _part = urllib.parse.parse_qs(_auth_response.message.split("?")[1])
 
+        #  token endpoint
         self._token(client, context, frontend, _part, _state, authz_request)
 
         response = self._userinfo(client, context, frontend, state=_state)

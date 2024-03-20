@@ -15,6 +15,7 @@ class ProviderConfigEndpointWrapper(EndPointWrapper):
         _http_info = get_http_info(context)
         _entity_type = self.upstream_get("attribute","entity_type")
         _entity_type.persistence.restore_state(context.request, _http_info)
+        # _entity_type.persistence.load_claims()
 
         logger.debug(f"request: {context.request}")
         logger.debug(f"https_info: {_http_info}")

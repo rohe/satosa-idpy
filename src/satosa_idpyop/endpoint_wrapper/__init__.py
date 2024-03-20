@@ -94,7 +94,7 @@ class EndPointWrapper(object):
             return response
         return parse_req
 
-    def process_request(self, context: Context, parse_req, http_info):
+    def process_request(self, context: Context, parse_req, http_info, **kwargs):
         """
         Processes an OAuth2/OIDC request
         """
@@ -116,7 +116,7 @@ class EndPointWrapper(object):
         #     context.state[Context.KEY_AUTHN_CONTEXT_CLASS_REF] = acr_values
 
         try:
-            proc_req = self.endpoint.process_request(parse_req, http_info=http_info)
+            proc_req = self.endpoint.process_request(parse_req, http_info=http_info, **kwargs)
             return proc_req
         except Exception as err:  # pragma: no cover
             logger.error(

@@ -77,12 +77,14 @@ class AuthorizationEndpointWrapper(EndPointWrapper):
             self.clean_up()
             return JsonResponse(parse_req._dict)
 
+        client_id = parse_req.get("client_id")
+
         _entity_type = self.upstream_get("attribute", "entity_type")
         _entity_type.persistence.restore_state(parse_req, http_info)
+        _entity_type.persistence.load_claims(client_id)
 
         context.state[self.endpoint.name] = {"oidc_request": context.request}
 
-        client_id = parse_req.get("client_id")
         _client_conf = self.endpoint.upstream_get("context").cdb[client_id]
         client_name = _client_conf.get("client_name")
         subject_type = _client_conf.get("subject_type", "pairwise")
