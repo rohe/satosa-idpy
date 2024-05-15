@@ -15,9 +15,9 @@ from idpyoidc.message.oauth2 import ResponseMessage
 from idpyoidc.server.authn_event import create_authn_event
 import satosa
 from satosa.response import SeeOther
-from satosa_openid4vci.core import ExtendedContext
-from satosa_openid4vci.core.claims import combine_claim_values
-from satosa_openid4vci.core.response import JsonResponse
+from satosa_idpyop.core import ExtendedContext
+from satosa_idpyop.core.claims import combine_claim_values
+from satosa_idpyop.core.response import JsonResponse
 
 from .endpoint_wrapper import get_http_info
 from .endpoints import IdpyOPEndpoints
