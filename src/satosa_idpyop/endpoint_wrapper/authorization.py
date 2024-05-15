@@ -81,7 +81,7 @@ class AuthorizationEndpointWrapper(EndPointWrapper):
 
         _entity_type = self.upstream_get("attribute", "entity_type")
         _entity_type.persistence.restore_state(parse_req, http_info)
-        _entity_type.persistence.load_claims(client_id)
+        # _entity_type.persistence.load_claims(client_id)
 
         context.state[self.endpoint.name] = {"oidc_request": context.request}
 

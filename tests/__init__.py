@@ -1,3 +1,6 @@
+import os
+import shutil
+
 from cryptojwt.utils import importer
 from fedservice.entity import FederationEntity
 from fedservice.entity.utils import get_federation_entity
@@ -97,13 +100,14 @@ def execute_function(function, **kwargs):
     else:
         return function(**kwargs)
 
+
 TA_ID = "https://ta.example.org"
 INT_ID = "https://intermediate.example.org"
 RP_ID = "https://rp.example.org"
 RP_PA_ID = "https://rp_pa.example.org"
 
-def federation_setup():
 
+def federation_setup():
     entity = {}
 
     ##################
@@ -118,7 +122,11 @@ def federation_setup():
             "contacts": "operations@ta.example.com"
         }
     }
-    trust_anchor = execute_function('entities.ta.main', **kwargs)
+    try:
+        trust_anchor = execute_function('entities.ta.main', **kwargs)
+    except ModuleNotFoundError:
+        trust_anchor = execute_function('tests.entities.ta.main', **kwargs)
+
     trust_anchors = {TA_ID: trust_anchor.keyjar.export_jwks()}
     entity["trust_anchor"] = trust_anchor
 
@@ -136,7 +144,10 @@ def federation_setup():
         "authority_hints": [TA_ID],
         "trust_anchors": trust_anchors
     }
-    intermediate = execute_function("entities.intermediate.main", **kwargs)
+    try:
+        intermediate = execute_function('entities.intermediate.main', **kwargs)
+    except ModuleNotFoundError:
+        intermediate = execute_function('tests.entities.intermediate.main', **kwargs)
 
     trust_anchor.server.subordinate[INT_ID] = {
         "jwks": intermediate.keyjar.export_jwks(),
@@ -145,11 +156,9 @@ def federation_setup():
     }
     entity["Intermediate"] = intermediate
 
-
     #########################################
     # Relying Party
     #########################################
-
 
     kwargs = {
         "entity_id": RP_ID,
@@ -162,7 +171,10 @@ def federation_setup():
         "trust_anchors": trust_anchors
     }
 
-    rp = execute_function("entities.rp.main", **kwargs)
+    try:
+        rp = execute_function('entities.rp.main', **kwargs)
+    except ModuleNotFoundError:
+        rp = execute_function('tests.entities.rp.main', **kwargs)
 
     trust_anchor.server.subordinate[RP_ID] = {
         "jwks": rp['federation_entity'].keyjar.export_jwks(),
@@ -172,9 +184,9 @@ def federation_setup():
     entity["relying_party"] = rp
 
     return entity
+
 
 def federation_pushed_authn_setup():
-
     entity = {}
 
     ##################
@@ -189,7 +201,10 @@ def federation_pushed_authn_setup():
             "contacts": "operations@ta.example.com"
         }
     }
-    trust_anchor = execute_function('entities.ta.main', **kwargs)
+    try:
+        trust_anchor = execute_function('entities.ta.main', **kwargs)
+    except ModuleNotFoundError:
+        trust_anchor = execute_function('tests.entities.ta.main', **kwargs)
     trust_anchors = {TA_ID: trust_anchor.keyjar.export_jwks()}
     entity["trust_anchor"] = trust_anchor
 
@@ -207,7 +222,10 @@ def federation_pushed_authn_setup():
         "authority_hints": [TA_ID],
         "trust_anchors": trust_anchors
     }
-    intermediate = execute_function("entities.intermediate.main", **kwargs)
+    try:
+        intermediate = execute_function('entities.intermediate.main', **kwargs)
+    except ModuleNotFoundError:
+        intermediate = execute_function('tests.entities.intermediate.main', **kwargs)
 
     trust_anchor.server.subordinate[INT_ID] = {
         "jwks": intermediate.keyjar.export_jwks(),
@@ -216,11 +234,9 @@ def federation_pushed_authn_setup():
     }
     entity["Intermediate"] = intermediate
 
-
     #########################################
     # Relying Party
     #########################################
-
 
     kwargs = {
         "entity_id": RP_ID,
@@ -233,7 +249,10 @@ def federation_pushed_authn_setup():
         "trust_anchors": trust_anchors
     }
 
-    rp = execute_function("entities.rp_pa.main", **kwargs)
+    try:
+        rp = execute_function('entities.rp.main', **kwargs)
+    except ModuleNotFoundError:
+        rp = execute_function('tests.entities.rp.main', **kwargs)
 
     trust_anchor.server.subordinate[RP_ID] = {
         "jwks": rp['federation_entity'].keyjar.export_jwks(),
@@ -245,3 +264,16 @@ def federation_pushed_authn_setup():
     return entity
 
 
+BASEDIR = os.path.abspath(os.path.dirname(__file__))
+
+
+def full_path(local_file):
+    return os.path.join(BASEDIR, local_file)
+
+
+def clear_folder(folder):
+    for root, dirs, files in os.walk(f'{full_path(folder)}'):
+        for f in files:
+            os.unlink(os.path.join(root, f))
+        for d in dirs:
+            shutil.rmtree(os.path.join(root, d))

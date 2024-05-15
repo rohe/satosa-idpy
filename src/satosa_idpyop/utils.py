@@ -209,3 +209,7 @@ class IdpyOPUtils(object):
         else:
             _ec.registration_access_token = {}
         return client_info
+
+
+def combine_client_subject_id(client_id: str, subject_id: str) -> str:
+    return "__:__".join([client_id, subject_id])

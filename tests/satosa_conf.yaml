@@ -155,6 +155,15 @@ op:
               class: idpyoidc.server.user_info.UserInfo
               kwargs:
                 db_file: users.json
+                credential_type_to_claims:
+                  PersonIdentificationData:
+                    - email
+                    - address.streetaddress
+                    - sub
+                    - name
+                    - family_name
+                    - given_name
+                    - nickname
             session_params:
               encrypter:
                 kwargs:

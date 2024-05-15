@@ -16,6 +16,7 @@ from idpyoidc.server.client_authn import basic_authn
 from idpyoidc.server.exception import ClientAuthenticationError
 from idpyoidc.util import sanitize
 from openid4v.message import AuthorizationRequest
+from satosa_idpyop.utils import combine_client_subject_id
 
 logger = logging.getLogger(__name__)
 
@@ -128,13 +129,13 @@ class OPPersistence(object):
         # Update client database
         self.restore_client_info(client_id)
 
-    def load_claims(self, client_id):
-        return self.storage.fetch(information_type="claims", key=client_id)
+    def load_claims(self, client_subject_id: str):
+        return self.storage.fetch(information_type="claims", key=client_subject_id)
 
     # Now for the store part
 
-    def store_claims(self, claims: dict, client_id: str):
-        self.storage.store(information_type="claims", value=claims, key=client_id)
+    def store_claims(self, claims: dict, client_subject_id: str):
+        self.storage.store(information_type="claims", value=claims, key=client_subject_id)
 
     def _get_client_session_info(self, client_id, db):
         sman = self.upstream_get("context").session_manager
@@ -198,8 +199,9 @@ class OPPersistence(object):
 
     def get_claims_from_branch_key(self, branch_key):
         sman = self.upstream_get("context").session_manager
-        _user_id, _client_id, _grant_id = sman.unpack_branch_key(branch_key)
-        return self.storage.fetch(information_type="claims", key=_user_id)
+        _user_id, _client_id, _grant_id = sman.decrypt_branch_id(branch_key)
+        _client_user_id = combine_client_subject_id(_client_id, _user_id)
+        return self.storage.fetch(information_type="claims", key=_client_user_id)
 
     def get_registered_client_ids(self):
         return self.storage.keys_by_information_type("client_info")

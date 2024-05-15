@@ -2,9 +2,6 @@ import logging
 import os
 
 from fedservice.utils import make_federation_combo
-from idpyoidc.server import Server
-from idpyoidc.server.configure import OPConfiguration
-from idpyoidc.server.util import execute
 
 # from idpyoidc.server.util import importer
 

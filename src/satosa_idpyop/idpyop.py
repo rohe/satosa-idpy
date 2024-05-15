@@ -21,6 +21,7 @@ from satosa_openid4vci.core.response import JsonResponse
 
 from .endpoint_wrapper import get_http_info
 from .endpoints import IdpyOPEndpoints
+from .utils import combine_client_subject_id
 
 try:
     from satosa.context import add_prompt_to_context
@@ -251,7 +252,8 @@ class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
             oidc_req = context.state["authorization"]["oidc_request"]
             client_id = oidc_req["client_id"]
 
-        self.entity_type.persistence.store_claims(combined_claims, client_id)
+        _client_subject_id = combine_client_subject_id(client_id, internal_resp.subject_id)
+        self.entity_type.persistence.store_claims(combined_claims, _client_subject_id)
         self.entity_type.persistence.store_state(client_id)
         self.clean_up()
         return response
