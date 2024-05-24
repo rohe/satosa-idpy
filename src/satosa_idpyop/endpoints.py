@@ -1,6 +1,8 @@
 import logging
 from typing import Optional
 
+from satosa_idpyop.endpoint_wrapper import get_special_endpoint_wrapper
+
 from satosa_idpyop.endpoint_wrapper import get_endpoint_wrapper
 
 from .core import ExtendedContext
@@ -20,7 +22,7 @@ IGNORED_HEADERS = ["cookie", "user-agent"]
 class IdpyOPEndpoints(object):
     """Handles all the Entity endpoints"""
 
-    def __init__(self, app, auth_req_callback_func, converter):
+    def __init__(self, app, auth_req_callback_func, converter, endpoint_wrapper_path=""):
         self.app = app
         _etype = [v for k,v in list(app.server.items()) if k != "federation_entity"]
         # Assumes there is only one guise except for the federation_entity
@@ -33,8 +35,12 @@ class IdpyOPEndpoints(object):
                     setattr(self, f"{k}_endpoint", _endpoint_wrapper(self.unit_get, endp, **kwargs))
             else:
                 for k, endp in item.endpoint.items():
-                    _endpoint_wrapper = get_endpoint_wrapper(endp)
-                    setattr(self, f"{k}_endpoint", _endpoint_wrapper(self.unit_get, endp, **kwargs))
+                    _endpoint_wrapper =  get_special_endpoint_wrapper(endpoint_wrapper_path, endp.name)
+                    if not _endpoint_wrapper:
+                        _endpoint_wrapper = get_endpoint_wrapper(endp)
+
+                    if _endpoint_wrapper:
+                        setattr(self, f"{k}_endpoint", _endpoint_wrapper(self.unit_get, endp, **kwargs))
 
         # add jwks.json web path
         self.jwks_endpoint = JWKSEndpointWrapper(self.unit_get, None)

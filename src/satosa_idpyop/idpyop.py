@@ -9,16 +9,16 @@ from urllib.parse import parse_qs
 from urllib.parse import urlencode
 from urllib.parse import urlparse
 
-from fedservice.appserver import ServerEntity
+import satosa
+from fedservice.server import ServerUnit
 from idpyoidc.message.oauth2 import AuthorizationErrorResponse
 from idpyoidc.message.oauth2 import ResponseMessage
 from idpyoidc.server.authn_event import create_authn_event
-import satosa
 from satosa.response import SeeOther
+
 from satosa_idpyop.core import ExtendedContext
 from satosa_idpyop.core.claims import combine_claim_values
 from satosa_idpyop.core.response import JsonResponse
-
 from .endpoint_wrapper import get_http_info
 from .endpoints import IdpyOPEndpoints
 from .utils import combine_client_subject_id
@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 IGNORED_HEADERS = ["cookie", "user-agent"]
 ALLOW_FEDERATION_RP = True
 
+
 class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
     """
     OpenID Connect frontend module based on idpy-oidc
@@ -48,17 +49,21 @@ class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
                  internal_attributes,
                  conf,
                  base_url,
-                 name
+                 name,
+                 endpoint_wrapper_path: Optional[str] = ""
                  ):
         FrontendModule.__init__(self, auth_req_callback_func, internal_attributes, base_url, name)
         self.app = idpy_oidc_app(conf)
         # Static for now
-        _servers = [v for k, v in self.app.server.items() if isinstance(v, ServerEntity)]
+        _servers = [v for k, v in self.app.server.items() if isinstance(v, ServerUnit)]
         # Should only be one
         self.entity_type = _servers[0]
-        IdpyOPEndpoints.__init__(self, self.app, auth_req_callback_func, self.converter)
+        IdpyOPEndpoints.__init__(self, self.app, auth_req_callback_func, self.converter, endpoint_wrapper_path)
         # registered endpoints will be filled by self.register_endpoints
         self.endpoints = None
+        persistence = getattr(self.app.server.federation_entity, "persistence", None)
+        if persistence:
+            persistence.store_state()
 
     def register_endpoints(self, backend_names):
         """

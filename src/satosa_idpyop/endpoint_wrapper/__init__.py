@@ -5,9 +5,11 @@ import os
 from os.path import isfile
 from os.path import join
 from typing import Optional
+from urllib.parse import urlparse
 
 from cryptojwt import KeyJar
 from fedservice.entity import get_verified_trust_chains
+from fedservice.entity.utils import get_federation_entity
 from idpyoidc.message import Message
 from idpyoidc.message.oidc import AuthnToken
 from idpyoidc.server import Endpoint
@@ -16,8 +18,8 @@ from idpyoidc.server.exception import InvalidClient
 from idpyoidc.server.exception import UnAuthorizedClient
 from idpyoidc.server.exception import UnknownClient
 from satosa.context import Context
-from satosa_idpyop.utils import IGNORED_HEADERS
 
+from satosa_idpyop.utils import IGNORED_HEADERS
 from ..core import ExtendedContext
 
 try:
@@ -166,19 +168,19 @@ class EndPointWrapper(object):
         return response
 
     def clean_up(self):
-        _entity_type = self.upstream_get("attribute", "entity_type")
+        _entity_type = self.upstream_get("unit")
         _entity_type.persistence.flush_session_manager()
 
-    def load_cdb(self, context: ExtendedContext, client_id: Optional[str] = None) -> dict:
+    def load_cdb(self, context: ExtendedContext, client_id: Optional[str] = "", entity_id: Optional[str] = "") -> dict:
         """
         gets client_id from local storage and updates the client DB
         """
-        if client_id:
-            client_id = client_id
-        elif context.request and isinstance(context.request, (dict, Message)):
-            client_id = context.request.get("client_id")
+        if not client_id:
+            if context.request and isinstance(context.request, (dict, Message)):
+                client_id = context.request.get("client_id")
 
-        _entity_type = self.upstream_get("attribute", "entity_type")
+        # This is a none federation_entity type part of this entity
+        _entity_type = self.upstream_get("unit")
         _ec = _entity_type.context
         _persistence = _entity_type.persistence
 
@@ -189,28 +191,23 @@ class EndPointWrapper(object):
             client_info = _persistence.restore_client_info_by_basic_auth(
                 context.request_authorization) or {}
             client_id = client_info.get("client_id")
-        elif context.request and context.request.get(
-                "client_assertion"
-        ):  # pragma: no cover
+
+        elif context.request and context.request.get("client_assertion"):  # pragma: no cover
             # this is not a validation just a client detection
             # validation is demanded later by idpy_oidc parse_request
-
-            ####
-            # WARNING: private_key_jwt can't be supported in SATOSA directly to token endpoint
-            # because the user MUST always pass through the authorization endpoint
-            ####
             token = AuthnToken().from_jwt(
                 txt=context.request["client_assertion"],
                 keyjar=KeyJar(),  # keyless keyjar
                 verify=False,  # otherwise keyjar MUST contain the issuer key
             )
-            client_id = token.get("iss")
-            client_info = _persistence.restore_client_info(client_id)
+            entity_id = token.get("iss")
+            client_info = _persistence.restore_client_info(entity_id)
 
         elif "Bearer " in getattr(context, "request_authorization", ""):
             client_info = _persistence.restore_client_info_by_bearer_token(
                 context.request_authorization) or {}
-            client_id = client_info.get("client_id")
+            client_id = client_info.get("client_id", "")
+            entity_id = client_info.get("entity_id", "")
 
         else:  # pragma: no cover
             _ec.cdb = {}
@@ -222,9 +219,17 @@ class EndPointWrapper(object):
             logger.debug(
                 f"Loaded oidcop client: {client_info}")
         else:  # pragma: no cover
+            _url = urlparse(client_id)
+            if _url.scheme not in ["http", "https"]:
+                _ec.cdb = client_info = {client_id: {"client_id": client_id}}
+                return client_info
+
             logger.info(f'Cannot find "{client_id}" in client DB')
-            _federation_entity = self.upstream_get("federation_entity")
-            trust_chains = get_verified_trust_chains(_federation_entity, client_id)
+            _federation_entity = get_federation_entity(self)
+            if client_id.startswith("http"):
+                trust_chains = get_verified_trust_chains(_federation_entity, client_id)
+            else:  # find the entity_id
+                trust_chains = get_verified_trust_chains(_federation_entity, entity_id=entity_id)
             if trust_chains:
                 _federation_entity.store_trust_chains(client_id, trust_chains)
                 client_info = trust_chains[0].metadata["openid_relying_party"]
@@ -250,7 +255,7 @@ class EndPointWrapper(object):
         return client_info
 
 
-def get_endpoint_wrapper(endpoint: Endpoint):
+def get_endpoint_wrapper(endpoint: Endpoint, endpoint_wrapper_path=None):
     path = "satosa_idpyop.endpoint_wrapper"
     files = [f for f in os.listdir(BASEDIR) if isfile(join(BASEDIR, f)) and f.endswith('.py')]
     for f in files:
@@ -262,3 +267,17 @@ def get_endpoint_wrapper(endpoint: Endpoint):
                 if endpoint.name in cls.wraps:
                     return cls
     return None
+
+
+def get_special_endpoint_wrapper(path, endpoint_name):
+    try:
+        module = importlib.import_module(f"{path}.{endpoint_name}")
+        clsmembers = inspect.getmembers(module, inspect.isclass)
+        for name, cls in clsmembers:
+            if name.endswith("EndpointWrapper"):
+                if endpoint_name in cls.wraps:
+                    return cls
+    except Exception as err:
+        return None
+    else:
+        return module

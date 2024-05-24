@@ -30,10 +30,10 @@ class TokenEndpointWrapper(EndPointWrapper):
 
         raw_request = AccessTokenRequest(**context.request)
 
-        _entity_type = self.upstream_get("attribute", "entity_type")
+        _guise = self.upstream_get("unit")
         # in token endpoint we cannot parse a request without having loaded cdb and session first
         try:
-            _entity_type.persistence.restore_state(raw_request, _http_info)
+            _guise.persistence.restore_state(raw_request, _http_info)
         except NoSuchGrant:
             _response = JsonResponse(
                 {
@@ -55,12 +55,18 @@ class TokenEndpointWrapper(EndPointWrapper):
             self.clean_up()
             return JsonResponse(proc_req.to_dict(), status="403")
 
-        if isinstance(proc_req["response_args"].get("scope", str), list):
-            proc_req["response_args"]["scope"] = " ".join(proc_req["response_args"]["scope"])
+        _scopes = proc_req["response_args"].get("scope", None)
+        if _scopes:
+            if isinstance(_scopes, list):
+                proc_req["response_args"]["scope"] = " ".join(_scopes)
+            elif isinstance(_scopes, str):
+                proc_req["response_args"]["scope"] = _scopes
+        elif _scopes is not None:
+            del proc_req["response_args"]["scope"]
 
         # should only be one client in the client db
-        _client_id = list(_entity_type.context.cdb.keys())[0]
-        _entity_type.persistence.store_state(_client_id)
+        _client_id = list(_guise.context.cdb.keys())[0]
+        _guise.persistence.store_state(_client_id)
 
         # better return jwt or jwe here!
         response = JsonResponse(proc_req["response_args"])

@@ -247,8 +247,10 @@ class OPPersistence(object):
     def restore_pushed_authorization(self):
         _context = self.upstream_get("context")
         _par = {}
-        for _uri, v in self.storage.fetch(information_type="par").items():
-            _par[_uri] = AuthorizationRequest(**v)
+        _information = self.storage.fetch(information_type="par")
+        if _information:
+            for _uri, v in _information.items():
+                _par[_uri] = AuthorizationRequest(**v)
 
-        logger.debug(f"restore_pushed_authorization: {_par}")
-        _context.par_db = _par
+            logger.debug(f"restore_pushed_authorization: {_par}")
+            _context.par_db = _par
