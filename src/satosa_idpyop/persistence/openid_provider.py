@@ -3,12 +3,13 @@ import logging
 from typing import Optional
 from typing import Union
 
-from cryptojwt import as_unicode
 from cryptojwt import JWT
 from cryptojwt import KeyJar
+from cryptojwt import as_unicode
 from cryptojwt.exception import BadSignature
 from cryptojwt.exception import Invalid
 from cryptojwt.exception import MissingKey
+from cryptojwt.jws.jws import factory
 from cryptojwt.utils import as_bytes
 from idpyoidc.message import Message
 from idpyoidc.message.oidc import JsonWebToken
@@ -16,6 +17,7 @@ from idpyoidc.server.client_authn import basic_authn
 from idpyoidc.server.exception import ClientAuthenticationError
 from idpyoidc.util import sanitize
 from openid4v.message import AuthorizationRequest
+
 from satosa_idpyop.utils import combine_client_subject_id
 
 logger = logging.getLogger(__name__)
@@ -92,10 +94,15 @@ class OPPersistence(object):
                 return _info["id"]
             else:
                 token = authz.split(" ", 1)[1]
-                _token_info = session_manager.token_handler.info(token)
-                sid = _token_info["sid"]
-                _path = session_manager.decrypt_branch_id(sid)
-                return _path[1]
+                # is the token a default token or a signed JWT
+                _jws = factory(token)
+                if _jws:
+                    return _jws.jwt.payload().get("client_id", "")
+                else:
+                    _token_info = session_manager.token_handler.info(token)
+                    sid = _token_info["sid"]
+                    _path = session_manager.decrypt_branch_id(sid)
+                    return _path[1]
 
         return None
 
