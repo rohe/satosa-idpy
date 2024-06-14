@@ -37,22 +37,38 @@ IGNORED_HEADERS = ["cookie", "user-agent"]
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
 
 
+def get_attrs(klass):
+    return [k for k in klass.__dict__.keys()
+            if not k.startswith('__')
+            and not k.endswith('__')]
+
+
 def get_http_info(context: ExtendedContext):
     """
     Aligns parameters for idpy_oidc interoperability needs
     """
-    http_info = {"headers": {}}
 
-    if getattr(context, "http_info", None):
-        http_info = {
-            "headers": {
-                k.lower(): v
-                for k, v in context.http_info.items()
-                if k not in IGNORED_HEADERS
-            },
-            "method": context.request_method,
-            "url": context.request_uri,
-        }
+    if getattr(context, "http_headers", None):
+        _headers = {k.lower(): v
+                    for k, v in context.http_headers.items()
+                    if k not in IGNORED_HEADERS}
+    elif getattr(context, "http_info", None):
+        _headers = {k.lower(): v
+                    for k, v in context.http_info.items()
+                    if k not in IGNORED_HEADERS}
+    else:
+        raise ValueError("Neither http_headers not http_info in context")
+
+    _request_uri = context.request_uri
+    if not _request_uri:
+        _request_uri = f"https://{_headers['http_host']}/{context._path}"
+
+    http_info = {
+        "headers": _headers,
+        "method": context.request_method,
+        "url": _request_uri,
+    }
+    logger.debug(f"Context keys: {get_attrs(context)}")
 
     if getattr(context, "request_authorization", None):
         http_info["headers"].update(
@@ -60,7 +76,7 @@ def get_http_info(context: ExtendedContext):
         )
 
     context.http_info = http_info
-
+    logger.debug(f"HTTP info: {http_info}")
     return http_info
 
 
