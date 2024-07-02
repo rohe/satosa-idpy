@@ -61,7 +61,7 @@ class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
         IdpyOPEndpoints.__init__(self, self.app, auth_req_callback_func, self.converter, endpoint_wrapper_path)
         # registered endpoints will be filled by self.register_endpoints
         self.endpoints = None
-        persistence = getattr(self.app.server.federation_entity, "persistence", None)
+        persistence = getattr(self.app.server["federation_entity"], "persistence", None)
         if persistence:
             persistence.store_state()
 

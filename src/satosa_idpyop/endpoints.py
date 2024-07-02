@@ -58,7 +58,7 @@ class IdpyOPEndpoints(object):
         if not entity_type:
             entity_type = self.entity_type
 
-        return self.app.server[entity_type]
+        return self.app.server.get(entity_type, None)
 
     def get_attribute(self, attribute_name, *args):
         attr = getattr(self, attribute_name, None)

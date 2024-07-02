@@ -30,7 +30,12 @@ class TokenEndpointWrapper(EndPointWrapper):
 
         raw_request = AccessTokenRequest(**context.request)
 
-        _guise = self.upstream_get("unit")
+        _unit = self.upstream_get("unit")
+        if self.endpoint.endpoint_type == "oidc":
+            _guise = _unit.get_guise('openid_provider')
+        else:
+            _guise = _unit.get_guise('oauth_authority_server')
+
         # in token endpoint we cannot parse a request without having loaded cdb and session first
         try:
             _guise.persistence.restore_state(raw_request, _http_info)

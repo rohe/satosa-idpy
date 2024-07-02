@@ -185,7 +185,9 @@ class EndPointWrapper(object):
 
     def clean_up(self):
         _entity_type = self.upstream_get("unit")
-        _entity_type.persistence.flush_session_manager()
+        persistence = getattr(_entity_type, "persistence", None)
+        if persistence:
+            persistence.flush_session_manager()
 
     def load_cdb(self, context: ExtendedContext, client_id: Optional[str] = "", entity_id: Optional[str] = "") -> dict:
         """
@@ -195,10 +197,14 @@ class EndPointWrapper(object):
             if context.request and isinstance(context.request, (dict, Message)):
                 client_id = context.request.get("client_id")
 
-        # This is a none federation_entity type part of this entity
+        # Get the none federation_entity type part of this entity
         _entity_type = self.upstream_get("unit")
-        _ec = _entity_type.context
-        _persistence = _entity_type.persistence
+        if self.endpoint.endpoint_type == "oidc":
+            _op = _entity_type.get_guise('openid_provider')
+        else:
+            _op = _entity_type.get_guise('oauth_authorization_server')
+        # _ec = _entity_type.context
+        _persistence = _op.persistence
 
         if client_id:
             client_info = _persistence.restore_client_info(client_id)
@@ -226,7 +232,7 @@ class EndPointWrapper(object):
             entity_id = client_info.get("entity_id", "")
 
         else:  # pragma: no cover
-            _ec.cdb = {}
+            _op.context.cdb = {}
             _msg = f"Client {client_id} not found!"
             logger.warning(_msg)
             raise InvalidClient(_msg)
@@ -237,7 +243,7 @@ class EndPointWrapper(object):
         else:  # pragma: no cover
             _url = urlparse(client_id)
             if _url.scheme not in ["http", "https"]:
-                _ec.cdb = client_info = {client_id: {"client_id": client_id}}
+                _op.context.cdb = client_info = {client_id: {"client_id": client_id}}
                 return client_info
 
             logger.info(f'Cannot find "{client_id}" in client DB')
@@ -249,25 +255,25 @@ class EndPointWrapper(object):
             if trust_chains:
                 _federation_entity.store_trust_chains(client_id, trust_chains)
                 client_info = trust_chains[0].metadata["openid_relying_party"]
-                _ec.cdb = {client_id: client_info}
+                _op.context.cdb = {client_id: client_info}
             else:
                 raise UnknownClient(client_id)
 
         _jwks_uri = client_info.get("jwks_uri", None)
         if _jwks_uri:
-            _ec.keyjar.load_keys(client_id, jwks_uri=_jwks_uri)
+            _op.context.keyjar.load_keys(client_id, jwks_uri=_jwks_uri)
         else:
             _jwks = client_info.get("jwks", None)
             if _jwks:
-                _ec.keyjar.import_jwks(_jwks, client_id)
+                _op.context.keyjar.import_jwks(_jwks, client_id)
 
         # BUT specs are against!
         # https://openid.net/specs/openid-connect-registration-1_0.html#ReadRequest
         _rat = client_info.get("registration_access_token")
         if _rat:
-            _ec.registration_access_token[_rat] = client_info["client_id"]
+            _op.context.registration_access_token[_rat] = client_info["client_id"]
         else:
-            _ec.registration_access_token = {}
+            _op.context.registration_access_token = {}
         return client_info
 
 
