@@ -62,7 +62,12 @@ class FEPersistence(object):
                 keyjar.import_jwks(jwks, entity_id)
             else:
                 logger.debug(f"No jwks for {entity_id}")
-        self.upstream_get("unit").keyjar = keyjar
+        _guise = self.upstream_get("unit")
+        # For federation entities the keyjar is in the FederationEntity object
+        _guise.keyjar = keyjar
+        _httpc_params = getattr(_guise, "httpc_params", None)
+        if _httpc_params:
+            _guise.keyjar.httpc_params = _httpc_params
 
     def store_trust_chains(self):
         _entity = self.upstream_get("unit")

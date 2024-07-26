@@ -109,7 +109,8 @@ class OPPersistence(object):
     def restore_state(self,
                       request: Union[Message, dict],
                       http_info: Optional[dict]):
-        sman = self.upstream_get("context").session_manager
+        _context = self.upstream_get("context")
+        sman = _context.session_manager
         _session_info = self.storage.fetch(information_type="session_info", key="")
 
         self.flush_session_manager(sman)
@@ -135,6 +136,7 @@ class OPPersistence(object):
 
         # Update client database
         self.restore_client_info(client_id)
+        self.restore_keys()
 
     def load_claims(self, client_subject_id: str):
         return self.storage.fetch(information_type="claims", key=client_subject_id)
@@ -165,6 +167,7 @@ class OPPersistence(object):
         self.store_client_info(client_id)
         _session_state["db"] = {}
         self.storage.store(information_type="session_info", value=_session_state)
+        self.store_keys()
 
     def store_client_info(self, client_id):
         _context = self.upstream_get("context")
@@ -261,3 +264,32 @@ class OPPersistence(object):
 
             logger.debug(f"restore_pushed_authorization: {_par}")
             _context.par_db = _par
+
+    def store_keys(self):
+        _entity = self.upstream_get("unit")
+        for entity_id in _entity.context.keyjar.owners():
+            if entity_id == "" or entity_id == _entity.entity_id:
+                jwks = _entity.context.keyjar.export_jwks(private=True, issuer_id=entity_id)
+                if entity_id == "":
+                    entity_id = "__"
+            else:
+                jwks = _entity.context.keyjar.export_jwks(issuer_id=entity_id)
+            self.storage.store(information_type="jwks", key=entity_id, value=jwks)
+
+    def restore_keys(self):
+        keyjar = KeyJar()
+        for entity_id in self.storage.keys_by_information_type("jwks"):
+            jwks = self.storage.fetch(information_type="jwks", key=entity_id)
+            if jwks:
+                if entity_id == '__':
+                    entity_id = ""
+                keyjar.import_jwks(jwks, entity_id)
+            else:
+                logger.debug(f"No jwks for {entity_id}")
+        _guise = self.upstream_get("unit")
+        _httpc_params = getattr(_guise, "httpc_params", None)
+        if _httpc_params:
+            keyjar.httpc_params = _httpc_params
+        # The keyjar is in the context
+        _guise.context.keyjar = keyjar
+        _guise.keyjar = keyjar

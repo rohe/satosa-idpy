@@ -200,9 +200,9 @@ class EndPointWrapper(object):
         # Get the none federation_entity type part of this entity
         _entity_type = self.upstream_get("unit")
         if self.endpoint.endpoint_type == "oidc":
-            _op = _entity_type.get_guise('openid_provider')
+            _op = _entity_type.pick_guise('openid_provider')
         else:
-            _op = _entity_type.get_guise('oauth_authorization_server')
+            _op = _entity_type.pick_guise('oauth_authorization_server')
         # _ec = _entity_type.context
         _persistence = _op.persistence
 

@@ -1,6 +1,8 @@
 import logging
 from typing import Optional
 
+from idpyoidc.node import topmost_unit
+
 from satosa_idpyop.endpoint_wrapper import get_special_endpoint_wrapper
 
 from satosa_idpyop.endpoint_wrapper import get_endpoint_wrapper
@@ -54,11 +56,16 @@ class IdpyOPEndpoints(object):
     def get_unit(self, *args):
         return self
 
-    def get_guise(self, entity_type: Optional[str] = "", *args):
+    def pick_guise(self, entity_type: Optional[str] = "", *args):
         if not entity_type:
             entity_type = self.entity_type
 
-        return self.app.server.get(entity_type, None)
+        _root = topmost_unit(self)
+        _guise = _root.get(entity_type, None)
+        if _guise is None:
+            logger.error(f"Could not find guise '{entity_type}'")
+            logger.info(f"Available guises: {list(_root.keys())}")
+        return _guise
 
     def get_attribute(self, attribute_name, *args):
         attr = getattr(self, attribute_name, None)
