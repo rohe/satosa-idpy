@@ -86,7 +86,7 @@ KEYJAR_2 = init_key_jar(key_defs=DEFAULT_KEY_DEFS)
 @pytest.fixture
 def server_conf():
     return {
-        "issuer": "https://example.com/",
+        "entity_id": "https://example.com/",
         "token_expires_in": 600,
         "grant_expires_in": 300,
         "refresh_token_expires_in": 86400,

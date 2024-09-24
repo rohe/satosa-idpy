@@ -12,6 +12,7 @@ from ..endpoint_wrapper import EndPointWrapper
 
 logger = logging.getLogger(__name__)
 
+
 class TokenEndpointWrapper(EndPointWrapper):
     """
     Handle token requests (served at /token).

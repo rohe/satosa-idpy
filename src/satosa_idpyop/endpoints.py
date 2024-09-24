@@ -60,11 +60,10 @@ class IdpyOPEndpoints(object):
         if not entity_type:
             entity_type = self.entity_type
 
-        _root = topmost_unit(self)
-        _guise = _root.get(entity_type, None)
+        _guise = self.app.server.get(entity_type, None)
         if _guise is None:
             logger.error(f"Could not find guise '{entity_type}'")
-            logger.info(f"Available guises: {list(_root.keys())}")
+            logger.info(f"Available guises: {list(self.app.server.keys())}")
         return _guise
 
     def get_attribute(self, attribute_name, *args):

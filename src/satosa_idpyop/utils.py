@@ -112,12 +112,11 @@ class IdpyOPUtils(object):
             proc_req = endpoint.process_request(parse_req, http_info=http_info)
             return proc_req
         except Exception as err:  # pragma: no cover
-            logger.error(
-                f"In endpoint.process_request: {parse_req.__dict__} - {err}")
+            logger.info(f"In endpoint.process_request: {parse_req}")
             response = JsonResponse(
                 {
                     "error": "invalid_request",
-                    "error_description": "request cannot be processed",
+                    "error_description": f"request cannot be processed: {err}",
                 },
                 status="403",
             )

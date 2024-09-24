@@ -4,6 +4,7 @@ from typing import Optional
 from typing import Union
 
 from cryptojwt import JWT
+from cryptojwt import KeyBundle
 from cryptojwt import KeyJar
 from cryptojwt import as_unicode
 from cryptojwt.exception import BadSignature
@@ -119,6 +120,7 @@ class OPPersistence(object):
 
         # Find the client_id
         client_id = self._get_client_id(sman, request=request, http_info=http_info)
+        logger.debug(f"Restore state for {client_id}")
         # Update session
         _client_session_info = self.storage.fetch(information_type="client_session_info",
                                                   key=client_id)
@@ -158,6 +160,7 @@ class OPPersistence(object):
         return res
 
     def store_state(self, client_id):
+        logger.debug(f"Store state for {client_id}")
         sman = self.upstream_get("context").session_manager
         _session_state = sman.dump()
         _client_session_info = self._get_client_session_info(client_id, _session_state["db"])
@@ -267,6 +270,11 @@ class OPPersistence(object):
 
     def store_keys(self):
         _entity = self.upstream_get("unit")
+        logger.debug(f"Entity: {_entity.name}")
+        logger.debug(f"Stored keys belonging to: {_entity.context.keyjar.owners()}")
+        _keyjar = getattr(_entity, 'keyjar')
+        if _keyjar:
+            logger.debug(f"Other key owners: {_keyjar.owners()}")
         for entity_id in _entity.context.keyjar.owners():
             if entity_id == "" or entity_id == _entity.entity_id:
                 jwks = _entity.context.keyjar.export_jwks(private=True, issuer_id=entity_id)
@@ -274,22 +282,44 @@ class OPPersistence(object):
                     entity_id = "__"
             else:
                 jwks = _entity.context.keyjar.export_jwks(issuer_id=entity_id)
+            logger.debug(f"store entity_id: {entity_id}, jwks: {jwks}")
             self.storage.store(information_type="jwks", key=entity_id, value=jwks)
 
     def restore_keys(self):
         keyjar = KeyJar()
+        issuers = set()
         for entity_id in self.storage.keys_by_information_type("jwks"):
             jwks = self.storage.fetch(information_type="jwks", key=entity_id)
             if jwks:
                 if entity_id == '__':
                     entity_id = ""
                 keyjar.import_jwks(jwks, entity_id)
+                issuers.add(entity_id)
             else:
                 logger.debug(f"No jwks for {entity_id}")
-        _guise = self.upstream_get("unit")
-        _httpc_params = getattr(_guise, "httpc_params", None)
-        if _httpc_params:
-            keyjar.httpc_params = _httpc_params
-        # The keyjar is in the context
-        _guise.context.keyjar = keyjar
-        _guise.keyjar = keyjar
+
+        if keyjar:
+            _guise = self.upstream_get("unit")
+            _httpc_params = getattr(_guise, "httpc_params", None)
+            if _httpc_params:
+                keyjar.httpc_params = _httpc_params
+            # The keyjar is in the context
+            if not _guise.context.keyjar:
+                _guise.context.keyjar = keyjar
+                _guise.keyjar = keyjar
+            else:
+                for iss, ki_a in _guise.context.keyjar.items():
+                    if iss in keyjar:
+                        ki_b = keyjar[iss]
+                        xtra_keys = []
+                        curr_keys = ki_a.all_keys()
+                        for key in ki_b.all_keys():
+                            if key not in curr_keys:
+                                xtra_keys.append(key)
+                        if xtra_keys:
+                            kb = KeyBundle()
+                            for key in xtra_keys:
+                                kb.append(key)
+                            ki_a.add_kb(kb)
+
+            logger.debug(f"Restored keys for these owners: {keyjar.owners()}")

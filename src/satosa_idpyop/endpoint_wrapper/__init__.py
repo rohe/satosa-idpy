@@ -133,16 +133,16 @@ class EndPointWrapper(object):
         #     context.decorate(Context.KEY_AUTHN_CONTEXT_CLASS_REF, acr_values)
         #     context.state[Context.KEY_AUTHN_CONTEXT_CLASS_REF] = acr_values
 
+        logger.info(f"In {self.endpoint.name}.process_request: {parse_req}")
         try:
             proc_req = self.endpoint.process_request(parse_req, http_info=http_info, **kwargs)
             return proc_req
         except Exception as err:  # pragma: no cover
-            logger.error(
-                f"In {self.endpoint.name}.process_request: {parse_req.__dict__} - {err}")
+            logger.exception("process_request")
             response = JsonResponse(
                 {
                     "error": "invalid_request",
-                    "error_description": "request cannot be processed",
+                    "error_description": f"request cannot be processed {err}",
                 },
                 status="403",
             )
@@ -150,15 +150,15 @@ class EndPointWrapper(object):
             return response
 
     def do_response(self, response_args: Optional[dict] = None, request: Optional[dict] = None, **kwargs):
+        logger.info(f"In {self.endpoint.name}.do_response: {response_args.__dict__}")
         try:
             return self.endpoint.do_response(response_args=response_args, request=request, **kwargs)
         except Exception as err:  # pragma: no cover
-            logger.error(
-                f"In {self.endpoint.name}.do_response: {response_args.__dict__} - {err}")
+            logger.error(f"{err}")
             response = JsonResponse(
                 {
                     "error": "invalid_request",
-                    "error_description": "response cannot be created",
+                    "error_description": f"response cannot be created : {err}",
                 },
                 status="403",
             )

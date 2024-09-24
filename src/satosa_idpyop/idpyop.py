@@ -82,7 +82,13 @@ class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
                     url_map.append((f"^{v.endpoint_path}", getattr(self, f"{k}_endpoint")))
 
         # add jwks.json web path
-        uri_path = self.app.server["openid_provider"].config["key_conf"]["uri_path"]
+        # assume one of these two
+        uri_path = ""
+        for _entity_type in ["openid_provider", 'oauth_authorization_server']:
+            _item = self.app.server.get(_entity_type)
+            if _item:
+                uri_path = _item.config["key_conf"]["uri_path"]
+
         url_map.append((f"^{uri_path}", self.jwks_endpoint))
 
         logger.debug(f"Loaded OpenID Provider endpoints: {url_map}")
