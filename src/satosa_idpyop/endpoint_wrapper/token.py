@@ -6,7 +6,7 @@ from idpyoidc.server.exception import NoSuchGrant
 from idpyoidc.server.exception import UnknownClient
 from openid4v import ServerEntity
 
-from . import get_http_info
+from ..utils import get_http_info
 from ..core.response import JsonResponse
 from ..endpoint_wrapper import EndPointWrapper
 

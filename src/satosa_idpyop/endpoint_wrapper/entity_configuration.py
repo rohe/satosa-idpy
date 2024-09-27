@@ -1,6 +1,6 @@
 import logging
 
-from . import get_http_info
+from ..utils import get_http_info
 from ..core.response import JWSResponse
 from ..endpoint_wrapper import EndPointWrapper
 

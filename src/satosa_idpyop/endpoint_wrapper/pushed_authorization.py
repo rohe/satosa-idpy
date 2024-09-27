@@ -4,7 +4,7 @@ from openid4v.message import auth_detail_list_deser
 from openid4v.message import AuthorizationDetail
 
 from . import EndPointWrapper
-from . import get_http_info
+from ..utils import get_http_info
 from ..core import ExtendedContext
 from ..core.response import JsonResponse
 

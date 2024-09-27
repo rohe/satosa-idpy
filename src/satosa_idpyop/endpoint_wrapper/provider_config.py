@@ -2,7 +2,7 @@ import logging
 
 from idpyoidc.message import Message
 
-from . import get_http_info
+from ..utils import get_http_info
 from ..core.response import JsonResponse
 from ..endpoint_wrapper import EndPointWrapper
 

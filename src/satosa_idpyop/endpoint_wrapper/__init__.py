@@ -37,47 +37,7 @@ IGNORED_HEADERS = ["cookie", "user-agent"]
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
 
 
-def get_attrs(klass):
-    return [k for k in klass.__dict__.keys()
-            if not k.startswith('__')
-            and not k.endswith('__')]
 
-
-def get_http_info(context: ExtendedContext):
-    """
-    Aligns parameters for idpy_oidc interoperability needs
-    """
-
-    if getattr(context, "http_headers", None):
-        _headers = {k.lower(): v
-                    for k, v in context.http_headers.items()
-                    if k not in IGNORED_HEADERS}
-    elif getattr(context, "http_info", None):
-        _headers = {k.lower(): v
-                    for k, v in context.http_info.items()
-                    if k not in IGNORED_HEADERS}
-    else:
-        raise ValueError("Neither http_headers not http_info in context")
-
-    _request_uri = context.request_uri
-    if not _request_uri:
-        _request_uri = f"https://{_headers['http_host']}/{context._path}"
-
-    http_info = {
-        "headers": _headers,
-        "method": context.request_method,
-        "url": _request_uri,
-    }
-    logger.debug(f"Context keys: {get_attrs(context)}")
-
-    if getattr(context, "request_authorization", None):
-        http_info["headers"].update(
-            {"authorization": context.request_authorization}
-        )
-
-    context.http_info = http_info
-    logger.debug(f"HTTP info: {http_info}")
-    return http_info
 
 
 class EndPointWrapper(object):
@@ -96,6 +56,7 @@ class EndPointWrapper(object):
         Returns a parsed OAuth2/OIDC request, used by endpoints views
         """
         try:
+            logger.debug(f"request: {request}")
             parse_req = self.endpoint.parse_request(request, http_info=http_info)
         except (
                 InvalidClient,
@@ -110,6 +71,15 @@ class EndPointWrapper(object):
             )
             self.clean_up()
             return response
+        except Exception as err:
+            logger.exception(f"parse_request: {request}")
+            response = JsonResponse(
+                {"error": "Parsing error", "error_description": str(err)},
+                status="403",
+            )
+            self.clean_up()
+            return response
+
         return parse_req
 
     def process_request(self, context: Context, parse_req, http_info, **kwargs):

@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import os
 from urllib.parse import parse_qs
@@ -8,11 +9,12 @@ from urllib.parse import urlparse
 from idpyoidc.message.oauth2 import AuthorizationErrorResponse
 from idpyoidc.message.oauth2 import ResponseMessage
 from idpyoidc.server.authn_event import create_authn_event
+from openid4v.message import AuthorizationDetail
 from openid4v.message import AuthorizationRequest
 import satosa
 
 from . import EndPointWrapper
-from . import get_http_info
+from ..utils import get_http_info
 from ..core import ExtendedContext
 from ..core.claims import combine_claim_values
 from ..core.response import JsonResponse
@@ -69,6 +71,16 @@ class AuthorizationEndpointWrapper(EndPointWrapper):
         self.log_request(context, "OAuth2 Authorization request from client")
         logger.debug(f"{self.endpoint.name}")
         logger.debug(f"request at frontend: {context.request}")
+
+        # FIX
+        if "authorization_details" in context.request:
+            _details = json.loads(context.request["authorization_details"])
+            _ads = []
+            for item in _details:
+                _ad = AuthorizationDetail().from_urlencoded(item)
+                _ads.append(_ad.to_dict())
+            context.request["authorization_details"] = _ads
+            logger.debug(f"request at frontend after fix: {context.request}")
 
         http_info = get_http_info(context)
         parse_req = self.parse_request(context.request, http_info=http_info)

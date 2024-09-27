@@ -1,13 +1,8 @@
 import logging
 from typing import Optional
 
-from idpyoidc.node import topmost_unit
-
-from satosa_idpyop.endpoint_wrapper import get_special_endpoint_wrapper
-
 from satosa_idpyop.endpoint_wrapper import get_endpoint_wrapper
-
-from .core import ExtendedContext
+from satosa_idpyop.endpoint_wrapper import get_special_endpoint_wrapper
 from .endpoint_wrapper.jwks import JWKSEndpointWrapper
 
 try:
@@ -26,10 +21,10 @@ class IdpyOPEndpoints(object):
 
     def __init__(self, app, auth_req_callback_func, converter, endpoint_wrapper_path=""):
         self.app = app
-        _etype = [v for k,v in list(app.server.items()) if k != "federation_entity"]
+        _etype = [v for k, v in list(app.server.items()) if k != "federation_entity"]
         # Assumes there is only one guise except for the federation_entity
         self.entity_type = _etype[0]
-        kwargs = {"auth_req_callback_func": auth_req_callback_func, "converter":converter}
+        kwargs = {"auth_req_callback_func": auth_req_callback_func, "converter": converter}
         for entity_type, item in app.server.items():
             if entity_type == "federation_entity":
                 for k, endp in item.server.endpoint.items():
@@ -37,12 +32,14 @@ class IdpyOPEndpoints(object):
                     setattr(self, f"{k}_endpoint", _endpoint_wrapper(self.unit_get, endp, **kwargs))
             else:
                 for k, endp in item.endpoint.items():
-                    _endpoint_wrapper =  get_special_endpoint_wrapper(endpoint_wrapper_path, endp.name)
+                    _endpoint_wrapper = get_special_endpoint_wrapper(endpoint_wrapper_path,
+                                                                     endp.name)
                     if not _endpoint_wrapper:
                         _endpoint_wrapper = get_endpoint_wrapper(endp)
 
                     if _endpoint_wrapper:
-                        setattr(self, f"{k}_endpoint", _endpoint_wrapper(self.unit_get, endp, **kwargs))
+                        setattr(self, f"{k}_endpoint",
+                                _endpoint_wrapper(self.unit_get, endp, **kwargs))
 
         # add jwks.json web path
         self.jwks_endpoint = JWKSEndpointWrapper(self.unit_get, None)
