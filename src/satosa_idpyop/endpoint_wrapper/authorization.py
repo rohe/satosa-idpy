@@ -1,5 +1,4 @@
 import base64
-import json
 import logging
 import os
 from urllib.parse import parse_qs
@@ -14,10 +13,10 @@ from openid4v.message import AuthorizationRequest
 import satosa
 
 from . import EndPointWrapper
-from ..utils import get_http_info
 from ..core import ExtendedContext
 from ..core.claims import combine_claim_values
 from ..core.response import JsonResponse
+from ..utils import get_http_info
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +31,19 @@ import satosa.logging_util as lu
 from satosa.response import SeeOther
 
 logger = logging.getLogger(__name__)
+
+
+def handle_authorization_details_decoding(request):
+    if request["authorization_details"].startswith("[") and request[
+        "authorization_details"].endswith("]"):
+        _ads = request["authorization_details"][1:-1].split(",")
+        _list = []
+        for _url_ad in _ads:
+            _url_ad = _url_ad[1:-1]
+            _item = AuthorizationDetail().from_urlencoded(_url_ad)
+            _list.append(_item.to_dict())
+        request["authorization_details"] = _list
+    return request
 
 
 class AuthorizationEndpointWrapper(EndPointWrapper):
@@ -74,13 +86,7 @@ class AuthorizationEndpointWrapper(EndPointWrapper):
 
         # FIX
         if "authorization_details" in context.request:
-            _details = json.loads(context.request["authorization_details"])
-            _ads = []
-            for item in _details:
-                _ad = AuthorizationDetail().from_urlencoded(item)
-                _ads.append(_ad.to_dict())
-            context.request["authorization_details"] = _ads
-            logger.debug(f"request at frontend after fix: {context.request}")
+            handle_authorization_details_decoding(context.request)
 
         http_info = get_http_info(context)
         parse_req = self.parse_request(context.request, http_info=http_info)
