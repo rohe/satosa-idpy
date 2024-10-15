@@ -72,7 +72,7 @@ class EndPointWrapper(object):
             self.clean_up()
             return response
         except Exception as err:
-            logger.exception(f"parse_request: {request}")
+            logger.exception(f"Unexpected exception in parse_request")
             response = JsonResponse(
                 {"error": "Parsing error", "error_description": str(err)},
                 status="403",

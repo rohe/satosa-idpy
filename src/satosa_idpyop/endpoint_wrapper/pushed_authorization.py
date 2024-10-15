@@ -22,8 +22,11 @@ class PushedAuthorizationEndpointWrapper(EndPointWrapper):
 
         logger.debug(f"Incoming request: {context.request}")
         self.pre_parse_request(context)
+        logger.debug(f"Done pre_parse_request")
         parse_req = self.parse_request(context.request, http_info=_http_info)
+        logger.debug(f"Done parse_request: {parse_req}")
         parse_req = self.post_parse_request(context=context, parse_req=parse_req)
+        logger.debug(f"Done post_parse_request: {parse_req}")
 
         proc_resp = self.process_request(context, parse_req, _http_info)
         if isinstance(proc_resp, JsonResponse):
