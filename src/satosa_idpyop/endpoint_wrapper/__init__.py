@@ -8,6 +8,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from cryptojwt import KeyJar
+from cryptojwt.jws.jws import factory
 from fedservice.entity import get_verified_trust_chains
 from fedservice.entity.utils import get_federation_entity
 from idpyoidc.message import Message
@@ -179,12 +180,14 @@ class EndPointWrapper(object):
         if client_id:
             client_info = _persistence.restore_client_info(client_id)
         elif "Basic " in getattr(context, "request_authorization", ""):
+            logger.debug(f"client_id from basic authentication")
             # here even for introspection endpoint
             client_info = _persistence.restore_client_info_by_basic_auth(
                 context.request_authorization) or {}
             client_id = client_info.get("client_id")
 
         elif context.request and context.request.get("client_assertion"):  # pragma: no cover
+            logger.debug(f"client_id from client_assertion")
             # this is not a validation just a client detection
             # validation is demanded later by idpy_oidc parse_request
             token = AuthnToken().from_jwt(
@@ -196,10 +199,20 @@ class EndPointWrapper(object):
             client_info = _persistence.restore_client_info(entity_id)
 
         elif "Bearer " in getattr(context, "request_authorization", ""):
+            logger.debug(f"client_id from bearer token")
             client_info = _persistence.restore_client_info_by_bearer_token(
                 context.request_authorization) or {}
             client_id = client_info.get("client_id", "")
             entity_id = client_info.get("entity_id", "")
+
+        elif "OAuth-Client-Attestation-PoP" in context.https_headers:
+            logger.debug(f"client_id from OAuth-Client-Attestation-PoP HTTP header")
+            _jws = factory(context.https_headers["OAuth-Client-Attestation-PoP"])
+            if _jws:
+                client_id = _jws.jwt.payload()["iss"]
+                client_info = _persistence.restore_client_info(client_id) or {}
+                client_id = client_info.get("client_id", "")
+                entity_id = client_info.get("entity_id", "")
 
         else:  # pragma: no cover
             _op.context.cdb = {}
