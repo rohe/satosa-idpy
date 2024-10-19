@@ -1,5 +1,4 @@
 import base64
-import json
 import logging
 import os
 from urllib.parse import parse_qs
@@ -14,10 +13,10 @@ from openid4v.message import AuthorizationRequest
 import satosa
 
 from . import EndPointWrapper
-from ..utils import get_http_info
 from ..core import ExtendedContext
 from ..core.claims import combine_claim_values
 from ..core.response import JsonResponse
+from ..utils import get_http_info
 
 logger = logging.getLogger(__name__)
 
