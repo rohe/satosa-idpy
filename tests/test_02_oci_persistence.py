@@ -158,7 +158,8 @@ class TestOCIPersistence(object):
     def create_persistence_layer(self, server_conf):
         # clean up after last time
         try:
-            shutil.rmtree("storage")
+            shutil.rmtree("op_storage")
+            shutil.rmtree("fe_storage")
         except FileNotFoundError:
             pass
 
@@ -305,5 +306,5 @@ class TestOCIPersistence(object):
         assert len(self.server.context.session_manager.db.db.keys()) == 3
         assert 'diana' in self.server.context.session_manager.db.db
         assert 'diana;;client_1' in self.server.context.session_manager.db.db
-        assert self.server.keyjar.httpc_params["timeout"] == 33
-        assert self.server.context.keyjar.httpc_params["timeout"] == 33
+        assert self.server.keyjar.httpc_params["timeout"] == 10
+        assert self.server.context.keyjar.httpc_params["timeout"] == 10

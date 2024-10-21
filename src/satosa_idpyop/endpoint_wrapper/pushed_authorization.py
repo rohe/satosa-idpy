@@ -41,7 +41,10 @@ class PushedAuthorizationEndpointWrapper(EndPointWrapper):
         _fed_entity.persistence.store_state()
 
         logger.debug(f"PAR response: {proc_resp}")
-        response = JsonResponse(proc_resp["http_response"])
+        if "response_args" in proc_resp:
+            response = JsonResponse(proc_resp["response_args"])
+        else:
+            response = JsonResponse(proc_resp["http_response"])
         self.clean_up()
         return response
 

@@ -1,16 +1,16 @@
 import os
 import re
 import sys
-import urllib
 from typing import Optional
+import urllib
 
-import pytest
-import responses
 from idpyoidc.message import Message
 from idpyoidc.message.oauth2 import AuthorizationRequest
 from idpyoidc.server.user_authn.authn_context import PASSWORD
 from idpyoidc.util import load_yaml_config
 from idpyoidc.util import rndstr
+import pytest
+import responses
 from satosa.attribute_mapping import AttributeMapper
 from satosa.frontends.base import FrontendModule
 from satosa.internal import AuthenticationInformation
@@ -53,15 +53,18 @@ class TestFrontEnd():
     @pytest.fixture
     def frontend(self):
         clear_folder("op_storage")
-        frontend_config = load_yaml_config("satosa_conf.yaml")
+        clear_folder("fe_storage")
+        frontend_config = load_yaml_config(full_path("satosa_conf.yaml"))
 
-        frontend_config["op"]["server_info"]["entity_type"]["openid_provider"]["kwargs"]["config"]["userinfo"] = {
+        frontend_config["op"]["server_info"]["entity_type"]["openid_provider"]["kwargs"]["config"][
+            "userinfo"] = {
             "class": "satosa_idpyop.user_info.ProxyUserInfo",
             "kwargs": {}
         }
 
         _keys = self.entity["trust_anchor"].keyjar.export_jwks()
-        frontend_config["op"]["server_info"]["trust_anchors"]["https://ta.example.org"]["keys"] = _keys["keys"]
+        frontend_config["op"]["server_info"]["trust_anchors"]["https://ta.example.org"]["keys"] = \
+        _keys["keys"]
         frontend = IdpyOPFrontend(auth_req_callback_func, INTERNAL_ATTRIBUTES,
                                   frontend_config, OP_BASE_URL, "idpyop_frontend")
         url_map = frontend.register_endpoints([])
@@ -73,15 +76,17 @@ class TestFrontEnd():
         context.state = State()
         return context
 
-    def setup_for_authn_response(self, context: ExtendedContext, frontend: FrontendModule, auth_req: Message):
+    def setup_for_authn_response(self, context: ExtendedContext, frontend: FrontendModule,
+                                 auth_req: Message):
         context.state[frontend.name] = {"oidc_request": auth_req.to_urlencoded()}
 
         auth_info = AuthenticationInformation(
             PASSWORD, "2015-09-30T12:21:37Z", "unittest_idp.xml"
         )
         internal_response = InternalData(auth_info=auth_info)
-        internal_response.attributes = AttributeMapper(frontend.internal_attributes).to_internal("saml",
-                                                                                                 USERS["testuser1"])
+        internal_response.attributes = AttributeMapper(frontend.internal_attributes).to_internal(
+            "saml",
+            USERS["testuser1"])
         internal_response.subject_id = USERS["testuser1"]["eduPersonTargetedID"][0]
 
         return internal_response
@@ -201,11 +206,13 @@ class TestFrontEnd():
         with responses.RequestsMock() as rsps:
             for _url, _jwks in where_and_what.items():
                 rsps.add("GET", _url, body=_jwks,
-                         adding_headers={"Content-Type": "application/json"}, status=200)
+                         adding_headers={"Content-Type": "application/entity_statement+jwt"},
+                         status=200)
 
             _parsed_req = func(context)
 
-        internal_response = self.setup_for_authn_response(context, frontend, AuthorizationRequest(**authz_request))
+        internal_response = self.setup_for_authn_response(context, frontend,
+                                                          AuthorizationRequest(**authz_request))
         _auth_response = frontend.handle_authn_response(context, internal_response)
 
         assert isinstance(_auth_response, SeeOther)

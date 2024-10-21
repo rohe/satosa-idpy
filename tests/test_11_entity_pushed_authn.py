@@ -66,7 +66,13 @@ class TestFrontEnd():
     @pytest.fixture
     def frontend(self):
         clear_folder("op_storage")
+        clear_folder("fe_storage")
         frontend_config = load_yaml_config(full_path("satosa_conf_pa.yaml"))
+
+        _cnf = frontend_config["op"]["server_info"]["entity_type"]["openid_provider"]["kwargs"][
+            "config"]
+        _user_db_file = _cnf["userinfo"]["kwargs"]["db_file"]
+        _cnf["userinfo"]["kwargs"]["db_file"] = full_path(_user_db_file)
 
         _keys = self.entity["trust_anchor"].keyjar.export_jwks()
         frontend_config["op"]["server_info"]["trust_anchors"][TA_ID]["keys"] = _keys["keys"]

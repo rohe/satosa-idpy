@@ -20,7 +20,6 @@ from idpyoidc.server.exception import UnAuthorizedClient
 from idpyoidc.server.exception import UnknownClient
 from satosa.context import Context
 
-from satosa_idpyop.utils import IGNORED_HEADERS
 from ..core import ExtendedContext
 
 try:
@@ -36,9 +35,6 @@ logger = logging.getLogger(__name__)
 
 IGNORED_HEADERS = ["cookie", "user-agent"]
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
-
-
-
 
 
 class EndPointWrapper(object):
@@ -120,7 +116,8 @@ class EndPointWrapper(object):
             self.clean_up()
             return response
 
-    def do_response(self, response_args: Optional[dict] = None, request: Optional[dict] = None, **kwargs):
+    def do_response(self, response_args: Optional[dict] = None, request: Optional[dict] = None,
+                    **kwargs):
         logger.info(f"In {self.endpoint.name}.do_response: {response_args.__dict__}")
         try:
             return self.endpoint.do_response(response_args=response_args, request=request, **kwargs)
@@ -160,103 +157,114 @@ class EndPointWrapper(object):
         if persistence:
             persistence.flush_session_manager()
 
-    def load_cdb(self, context: ExtendedContext, client_id: Optional[str] = "", entity_id: Optional[str] = "") -> dict:
+    def load_cdb(self, context: ExtendedContext, client_id: Optional[str] = "",
+                 entity_id: Optional[str] = "") -> dict:
         """
-        gets client_id from local storage and updates the client DB
+        Guesses the client_id from parts of the request, then uses local storage and updates the
+        client DB
+        This is not a validation just a client detection
+        Validation is demanded later by idpy_oidc parse_request
         """
+
+        # The simple thing get it from the request
         if not client_id:
             if context.request and isinstance(context.request, (dict, Message)):
                 client_id = context.request.get("client_id")
 
         # Get the none federation_entity type part of this entity
-        _entity_type = self.upstream_get("unit")
-        if self.endpoint.endpoint_type == "oidc":
-            _op = _entity_type.pick_guise('openid_provider')
-        else:
-            _op = _entity_type.pick_guise('oauth_authorization_server')
-        # _ec = _entity_type.context
-        _persistence = _op.persistence
+        _frontend = self.upstream_get("unit")
+        _srv = _frontend.pick_guise('openid_provider')
+        if not _srv:
+            _srv = _frontend.pick_guise('oauth_authorization_server')
+        # Use that to get the appropriate persistence layer
+        _persistence = _srv.persistence
 
         if client_id:
             client_info = _persistence.restore_client_info(client_id)
-        elif "Basic " in getattr(context, "request_authorization", ""):
-            logger.debug(f"client_id from basic authentication")
-            # here even for introspection endpoint
-            client_info = _persistence.restore_client_info_by_basic_auth(
-                context.request_authorization) or {}
-            client_id = client_info.get("client_id")
+        else:
+            client_info = {}
+            if "Basic " in getattr(context, "request_authorization", ""):
+                logger.debug(f"client_id from basic authentication")
+                # here even for introspection endpoint
+                client_info = _persistence.restore_client_info_by_basic_auth(
+                    context.request_authorization) or {}
+                client_id = client_info.get("client_id")
 
-        elif context.request and context.request.get("client_assertion"):  # pragma: no cover
-            logger.debug(f"client_id from client_assertion")
-            # this is not a validation just a client detection
-            # validation is demanded later by idpy_oidc parse_request
-            token = AuthnToken().from_jwt(
-                txt=context.request["client_assertion"],
-                keyjar=KeyJar(),  # keyless keyjar
-                verify=False,  # otherwise keyjar MUST contain the issuer key
-            )
-            entity_id = token.get("iss")
-            client_info = _persistence.restore_client_info(entity_id)
+            elif context.request and context.request.get("client_assertion"):  # pragma: no cover
+                logger.debug(f"client_id from client_assertion")
+                token = AuthnToken().from_jwt(
+                    txt=context.request["client_assertion"],
+                    keyjar=KeyJar(),  # keyless keyjar
+                    verify=False,  # otherwise keyjar MUST contain the issuer key
+                )
+                entity_id = token.get("iss")
+                client_info = _persistence.restore_client_info(entity_id)
 
-        elif "Bearer " in getattr(context, "request_authorization", ""):
-            logger.debug(f"client_id from bearer token")
-            client_info = _persistence.restore_client_info_by_bearer_token(
-                context.request_authorization) or {}
-            client_id = client_info.get("client_id", "")
-            entity_id = client_info.get("entity_id", "")
-
-        elif "OAuth-Client-Attestation-PoP" in context.https_headers:
-            logger.debug(f"client_id from OAuth-Client-Attestation-PoP HTTP header")
-            _jws = factory(context.https_headers["OAuth-Client-Attestation-PoP"])
-            if _jws:
-                client_id = _jws.jwt.payload()["iss"]
-                client_info = _persistence.restore_client_info(client_id) or {}
+            elif context.request and context.request.get("code"):  # pragma: no cover
+                logger.debug(f"client_id from access code")
+                client_info = _persistence.restore_client_info_by_access_code(
+                    context.request.get("code"))
                 client_id = client_info.get("client_id", "")
                 entity_id = client_info.get("entity_id", "")
-
-        else:  # pragma: no cover
-            _op.context.cdb = {}
-            _msg = f"Client {client_id} not found!"
-            logger.warning(_msg)
-            raise InvalidClient(_msg)
+            elif "Bearer " in getattr(context, "request_authorization", ""):
+                logger.debug(f"client_id from bearer token")
+                client_info = _persistence.restore_client_info_by_bearer_token(
+                    context.request_authorization) or {}
+                client_id = client_info.get("client_id", "")
+                entity_id = client_info.get("entity_id", "")
+            elif "OAuth-Client-Attestation-PoP" in context.https_headers:
+                logger.debug(f"client_id from OAuth-Client-Attestation-PoP HTTP header")
+                _jws = factory(context.https_headers["OAuth-Client-Attestation-PoP"])
+                if _jws:
+                    client_id = _jws.jwt.payload()["iss"]
+                    client_info = _persistence.restore_client_info(client_id) or {}
+                    client_id = client_info.get("client_id", "")
+                    entity_id = client_info.get("entity_id", "")
+            else:  # pragma: no cover
+                _srv.context.cdb = {}
+                _msg = f"Client {client_id} not found!"
+                logger.warning(_msg)
+                raise InvalidClient(_msg)
 
         if client_info:
-            logger.debug(
-                f"Loaded oidcop client: {client_info}")
+            logger.debug(f"Loaded oidcop client: {client_info}")
         else:  # pragma: no cover
             _url = urlparse(client_id)
             if _url.scheme not in ["http", "https"]:
-                _op.context.cdb = client_info = {client_id: {"client_id": client_id}}
+                _srv.context.cdb = client_info = {client_id: {"client_id": client_id}}
                 return client_info
 
             logger.info(f'Cannot find "{client_id}" in client DB')
-            _federation_entity = get_federation_entity(self)
-            if client_id.startswith("http"):
-                trust_chains = get_verified_trust_chains(_federation_entity, client_id)
-            else:  # find the entity_id
+            # _federation_entity = get_federation_entity(self)
+            _federation_entity = self.upstream_get("unit").app.server["federation_entity"]
+
+            if entity_id:
                 trust_chains = get_verified_trust_chains(_federation_entity, entity_id=entity_id)
+            else:
+                trust_chains = get_verified_trust_chains(_federation_entity, client_id)
+
             if trust_chains:
                 _federation_entity.store_trust_chains(client_id, trust_chains)
                 client_info = trust_chains[0].metadata["openid_relying_party"]
-                _op.context.cdb = {client_id: client_info}
+                _srv.context.cdb = {client_id: client_info}
             else:
                 raise UnknownClient(client_id)
 
         _jwks_uri = client_info.get("jwks_uri", None)
         if _jwks_uri:
-            _op.context.keyjar.load_keys(client_id, jwks_uri=_jwks_uri)
+            _srv.context.keyjar.load_keys(client_id, jwks_uri=_jwks_uri)
         else:
             _jwks = client_info.get("jwks", None)
             if _jwks:
-                _op.context.keyjar.import_jwks(_jwks, client_id)
+                _srv.context.keyjar.import_jwks(_jwks, client_id)
 
         # BUT specs are against!
         # https://openid.net/specs/openid-connect-registration-1_0.html#ReadRequest
         _rat = client_info.get("registration_access_token")
         if _rat:
-            _op.context.registration_access_token[_rat] = client_info["client_id"]
+            _srv.context.registration_access_token[_rat] = client_info["client_id"]
         else:
-            _op.context.registration_access_token = {}
+            _srv.context.registration_access_token = {}
         return client_info
 
 

@@ -200,6 +200,13 @@ class OPPersistence(object):
         )
         return self.restore_client_info(_session_info["client_id"])
 
+    def restore_client_info_by_access_code(self, code: str):
+        sman = self.upstream_get("context").session_manager
+        _session_info = sman.get_session_info_by_token(
+            code, grant=True, handler_key="authorization_code"
+        )
+        return self.restore_client_info(_session_info["client_id"])
+
     def restore_client_info_by_basic_auth(self, http_authorization):
         _token = http_authorization.replace("Basic ", "")
         _tok = as_bytes(_token)
