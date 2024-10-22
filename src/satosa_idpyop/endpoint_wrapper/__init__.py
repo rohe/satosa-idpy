@@ -193,7 +193,8 @@ class EndPointWrapper(object):
                 logger.debug(f"client_id from access code")
                 _persistence.restore_session_info()
                 client_id = _srv.context.session_manager.get_client_id_from_token(
-                    context.request.get("code"))
+                    context.request.get("code"), handler_key="authorization_code")
+                logger.debug(f"Client ID: {client_id}")
                 client_info = _persistence.restore_client_info(client_id)
                 client_id = client_info.get("client_id", "")
                 entity_id = client_info.get("entity_id", "")
