@@ -10,7 +10,6 @@ from urllib.parse import urlparse
 from cryptojwt import KeyJar
 from cryptojwt.jws.jws import factory
 from fedservice.entity import get_verified_trust_chains
-from fedservice.entity.utils import get_federation_entity
 from idpyoidc.message import Message
 from idpyoidc.message.oidc import AuthnToken
 from idpyoidc.server import Endpoint
@@ -190,6 +189,15 @@ class EndPointWrapper(object):
                     context.request_authorization) or {}
                 client_id = client_info.get("client_id")
 
+            elif context.request and context.request.get("code"):  # pragma: no cover
+                logger.debug(f"client_id from access code")
+                _persistence.restore_session_info()
+                client_id = _srv.context.session_manager.get_client_id_from_token(
+                    context.request.get("code"))
+                client_info = _persistence.restore_client_info(client_id)
+                client_id = client_info.get("client_id", "")
+                entity_id = client_info.get("entity_id", "")
+
             elif context.request and context.request.get("client_assertion"):  # pragma: no cover
                 logger.debug(f"client_id from client_assertion")
                 token = AuthnToken().from_jwt(
@@ -200,12 +208,6 @@ class EndPointWrapper(object):
                 entity_id = token.get("iss")
                 client_info = _persistence.restore_client_info(entity_id)
 
-            elif context.request and context.request.get("code"):  # pragma: no cover
-                logger.debug(f"client_id from access code")
-                client_info = _persistence.restore_client_info_by_access_code(
-                    context.request.get("code"))
-                client_id = client_info.get("client_id", "")
-                entity_id = client_info.get("entity_id", "")
             elif "Bearer " in getattr(context, "request_authorization", ""):
                 logger.debug(f"client_id from bearer token")
                 client_info = _persistence.restore_client_info_by_bearer_token(

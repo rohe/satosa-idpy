@@ -53,7 +53,7 @@ class TestFrontEnd():
     @pytest.fixture
     def frontend(self):
         clear_folder("op_storage")
-        frontend_config = load_yaml_config("satosa_conf.yaml")
+        frontend_config = load_yaml_config(full_path("satosa_conf.yaml"))
 
         frontend_config["op"]["server_info"]["entity_type"]["openid_provider"]["kwargs"]["config"]["userinfo"] = {
             "class": "satosa_idpyop.user_info.ProxyUserInfo",
@@ -122,7 +122,6 @@ class TestFrontEnd():
             'grant_type': 'authorization_code',
             'code': response_part["code"][0],
             'redirect_uri': authz_request["redirect_uri"],
-            'client_id': client.entity_id,
             'state': state,
         }
 
