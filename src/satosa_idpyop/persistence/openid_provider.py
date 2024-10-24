@@ -159,15 +159,20 @@ class OPPersistence(object):
                     res[val[0]] = db[val[0]]
         return res
 
-    def store_state(self, client_id):
-        logger.debug(f"Store state for {client_id}")
+    def store_state(self, client_id: Optional[str] = ""):
+        if client_id:
+            logger.debug(f"Store state for {client_id}")
+        else:
+            logger.debug(f"Store no client related session information")
+
         sman = self.upstream_get("context").session_manager
         _session_state = sman.dump()
-        _client_session_info = self._get_client_session_info(client_id, _session_state["db"])
-        self.storage.store(information_type="client_session_info",
-                           value=_client_session_info,
-                           key=client_id)
-        self.store_client_info(client_id)
+        if client_id:
+            _client_session_info = self._get_client_session_info(client_id, _session_state["db"])
+            self.storage.store(information_type="client_session_info",
+                               value=_client_session_info,
+                               key=client_id)
+            self.store_client_info(client_id)
         _session_state["db"] = {}
         self.storage.store(information_type="session_info", value=_session_state)
         self.store_keys()
