@@ -107,9 +107,7 @@ class OPPersistence(object):
 
         return None
 
-    def restore_state(self,
-                      request: Union[Message, dict],
-                      http_info: Optional[dict]):
+    def restore_session_info(self):
         _context = self.upstream_get("context")
         sman = _context.session_manager
         _session_info = self.storage.fetch(information_type="session_info", key="")
@@ -117,6 +115,12 @@ class OPPersistence(object):
         self.flush_session_manager(sman)
         if _session_info:
             sman.load(_session_info)
+        return sman, _session_info
+
+    def restore_state(self,
+                      request: Union[Message, dict],
+                      http_info: Optional[dict]):
+        sman, _session_info = self.restore_session_info()
 
         # Find the client_id
         client_id = self._get_client_id(sman, request=request, http_info=http_info)
@@ -202,6 +206,13 @@ class OPPersistence(object):
         sman = self.upstream_get("context").session_manager
         _session_info = sman.get_session_info_by_token(
             access_token, grant=True, handler_key="access_token"
+        )
+        return self.restore_client_info(_session_info["client_id"])
+
+    def restore_client_info_by_access_code(self, code: str):
+        sman = self.upstream_get("context").session_manager
+        _session_info = sman.get_session_info_by_token(
+            code, grant=True, handler_key="authorization_code"
         )
         return self.restore_client_info(_session_info["client_id"])
 

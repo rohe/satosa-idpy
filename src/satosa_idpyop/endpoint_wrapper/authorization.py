@@ -53,7 +53,7 @@ class AuthorizationEndpointWrapper(EndPointWrapper):
         EndPointWrapper.__init__(self, upstream_get=upstream_get, endpoint=endpoint, **kwargs)
         self.auth_req_callback_func = auth_req_callback_func
         self.converter = converter
-        self.entity_type = self.upstream_get("guise")
+        self.entity_type = self.upstream_get("unit").entity_type.server_type
 
     def __call__(self, context: ExtendedContext):
         """

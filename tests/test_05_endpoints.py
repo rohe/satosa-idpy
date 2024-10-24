@@ -14,6 +14,10 @@ def full_path(local_file):
 
 def test():
     frontend_config = load_yaml_config(full_path("satosa_conf.yaml"))
+    _cnf = frontend_config["op"]["server_info"]["entity_type"]["openid_provider"]["kwargs"]["config"]
+    _user_db_file = _cnf["userinfo"]["kwargs"]["db_file"]
+    _cnf["userinfo"]["kwargs"]["db_file"] = full_path(_user_db_file)
+
     app = idpy_oidc_application(frontend_config)
     endpoints = IdpyOPEndpoints(app, None, {})
     assert endpoints

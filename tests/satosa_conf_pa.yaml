@@ -122,7 +122,7 @@ op:
             endpoint:
               provider_config:
                 path: ".well-known/openid-configuration"
-                class: fedservice.appserver.oidc.provider_config.ProviderConfiguration
+                class: idpyoidc.server.oidc.provider_config.ProviderConfiguration
               authorization:
                 path: authorization
                 class: fedservice.appserver.oidc.authorization.Authorization

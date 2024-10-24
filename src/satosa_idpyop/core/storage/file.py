@@ -7,6 +7,7 @@ from .base import Storage
 
 logger = logging.getLogger(__name__)
 
+VERBOSE=False
 DIVIDER = ":::"
 
 class FilesystemDB(AbstractFileSystem, Storage):
@@ -21,14 +22,16 @@ class FilesystemDB(AbstractFileSystem, Storage):
         AbstractFileSystem.__init__(self, fdir, key_conv, value_conv)
 
     def fetch(self, information_type: str, key: Optional[str] = ""):
-        logger.debug(f"Fetching {information_type}{DIVIDER}{key} from persistent storage")
+        if VERBOSE:
+            logger.debug(f"Fetching {information_type}{DIVIDER}{key} from persistent storage")
         if key:
             return self.get(DIVIDER.join([information_type, key]))
         else:
             return self.get(information_type)
 
     def store(self, information_type: str, value, key: Optional[str] = ""):
-        logger.debug(f"Storing {information_type}{DIVIDER}{key} to persistent storage")
+        if VERBOSE:
+            logger.debug(f"Storing {information_type}{DIVIDER}{key} to persistent storage")
         if key:
             self[DIVIDER.join([information_type, key])] = value
         else:
