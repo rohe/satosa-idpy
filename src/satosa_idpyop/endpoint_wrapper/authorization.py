@@ -211,12 +211,12 @@ class AuthorizationEndpointWrapper(EndPointWrapper):
         except Exception as excp:  # pragma: no cover
             return self.handle_error(excp=excp)
 
+        logger.debug(f"_handle_backend_response.authz_part2 -> {_args}")
+
         if isinstance(_args, ResponseMessage) and "error" in _args:
             self.clean_up()
             return JsonResponse(_args, status="403")
-        elif isinstance(
-                _args.get("response_args"), AuthorizationErrorResponse
-        ):  # pragma: no cover
+        elif isinstance(_args.get("response_args"), AuthorizationErrorResponse):  # pragma: no cover
             rargs = _args.get("response_args")
             logger.error(rargs)
             response = JsonResponse(rargs.to_json(), status="403")

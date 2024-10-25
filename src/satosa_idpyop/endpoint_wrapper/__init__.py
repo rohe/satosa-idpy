@@ -52,7 +52,7 @@ class EndPointWrapper(object):
         Returns a parsed OAuth2/OIDC request, used by endpoints views
         """
         try:
-            logger.debug(f"request: {request}")
+            logger.debug(f">>> {self.endpoint.name}.parse_request: {request}")
             parse_req = self.endpoint.parse_request(request, http_info=http_info)
         except (
                 InvalidClient,
@@ -99,7 +99,7 @@ class EndPointWrapper(object):
         #     context.decorate(Context.KEY_AUTHN_CONTEXT_CLASS_REF, acr_values)
         #     context.state[Context.KEY_AUTHN_CONTEXT_CLASS_REF] = acr_values
 
-        logger.info(f"In {self.endpoint.name}.process_request: {parse_req}")
+        logger.info(f">>> {self.endpoint.name}.process_request: {parse_req}")
         try:
             proc_req = self.endpoint.process_request(parse_req, http_info=http_info, **kwargs)
             return proc_req

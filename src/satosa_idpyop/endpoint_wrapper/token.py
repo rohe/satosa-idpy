@@ -6,9 +6,9 @@ from idpyoidc.server.exception import NoSuchGrant
 from idpyoidc.server.exception import UnknownClient
 from openid4v import ServerEntity
 
-from ..utils import get_http_info
 from ..core.response import JsonResponse
 from ..endpoint_wrapper import EndPointWrapper
+from ..utils import get_http_info
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ class TokenEndpointWrapper(EndPointWrapper):
     wraps = ["token"]
 
     def __call__(self, context, *args, **kwargs):
+        logger.debug(20 * "=" + f"TokenEndpointWrapper")
         _http_info = get_http_info(context)
 
         try:
