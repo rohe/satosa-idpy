@@ -23,8 +23,8 @@ CRYPT_CONFIG = {
     "kwargs": {
         "keys": {
             "key_defs": [
-                {"type": "OCT", "use": ["enc"], "kid": "password"},
-                {"type": "OCT", "use": ["enc"], "kid": "salt"},
+                {"type": "OCT", "use": ["enc"], "kid": "key", 'bytes':32},
+                {"type": "OCT", "use": ["enc"], "kid": "salt", 'bytes':32}
             ]
         },
         "iterations": 1,
@@ -301,6 +301,11 @@ class TestOCIPersistence(object):
         token = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
         http_info = {"headers": {"authorization": f"Basic {token}"}}
         self.server.persistence.restore_state(request=_request, http_info=http_info)
+
+        _ti_1 = self.server.context.session_manager.token_handler.handler["authorization_code"].info(code_1.value)
+        _ti_2 = self.server.context.session_manager.token_handler.handler["authorization_code"].info(code_2.value)
+        assert _ti_1["token_class"] == 'authorization_code'
+        assert _ti_2["token_class"] == 'authorization_code'
 
         assert set(self.server.context.cdb.keys()) == {"client_1"}
         assert len(self.server.context.session_manager.db.db.keys()) == 3
