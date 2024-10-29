@@ -170,6 +170,7 @@ class EndPointWrapper(object):
             if context.request and isinstance(context.request, (dict, Message)):
                 client_id = context.request.get("client_id")
 
+        logger.debug("client_id in request")
         # Get the none federation_entity type part of this entity
         _frontend = self.upstream_get("unit")
         _srv = _frontend.pick_guise('openid_provider')
