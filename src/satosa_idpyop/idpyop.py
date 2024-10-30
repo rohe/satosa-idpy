@@ -197,8 +197,10 @@ class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
             )
         except ValueError as excp:  # pragma: no cover
             # TODO - cover with unit test and add some satosa logging ...
+            logger.exception(excp)
             return self.handle_error(excp=excp)
         except Exception as excp:  # pragma: no cover
+            logger.exception(excp)
             return self.handle_error(excp=excp)
 
         logger.debug(f"authz_part2 args: {_args}")
