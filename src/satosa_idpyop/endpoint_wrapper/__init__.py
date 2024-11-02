@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from cryptojwt import KeyJar
 from cryptojwt.jws.jws import factory
 from fedservice.entity import get_verified_trust_chains
+from idpyoidc.key_import import import_jwks
 from idpyoidc.message import Message
 from idpyoidc.message.oidc import AuthnToken
 from idpyoidc.server import Endpoint
@@ -17,6 +18,7 @@ from idpyoidc.server.exception import ClientAuthenticationError
 from idpyoidc.server.exception import InvalidClient
 from idpyoidc.server.exception import UnAuthorizedClient
 from idpyoidc.server.exception import UnknownClient
+from openid4v import ServerEntity
 from satosa.context import Context
 
 from ..core import ExtendedContext
@@ -47,12 +49,32 @@ class EndPointWrapper(object):
     def __call__(self, *args, **kwargs):
         pass
 
+    def get_guise(self):
+        _unit = self.upstream_get("unit")
+        if isinstance(_unit, ServerEntity):
+            logger.debug("ServerEntity")
+            _guise = _unit
+        else:
+            if self.endpoint.endpoint_type == "oidc":
+                _guise = _unit.pick_guise('openid_provider')
+            else:
+                _guise = _unit.pick_guise('oauth_authority_server')
+
+            if not _guise:
+                logger.error(f"Could not find quise")
+                logger.info(f"Endpoint type: {self.endpoint.endpoint_type}")
+                logger.info(f"Unit: {_unit}")
+        return _guise
+
     def parse_request(self, request: dict, http_info: dict):
         """
         Returns a parsed OAuth2/OIDC request, used by endpoints views
         """
         try:
             logger.debug(f">>> {self.endpoint.name}.parse_request: {request}")
+            if self.endpoint.name == "credential":
+                _guise = self.get_guise()
+                _guise.persistence.restore_state(request, http_info)
             parse_req = self.endpoint.parse_request(request, http_info=http_info)
         except (
                 InvalidClient,
@@ -99,7 +121,18 @@ class EndPointWrapper(object):
         #     context.decorate(Context.KEY_AUTHN_CONTEXT_CLASS_REF, acr_values)
         #     context.state[Context.KEY_AUTHN_CONTEXT_CLASS_REF] = acr_values
 
-        logger.info(f">>> {self.endpoint.name}.process_request: {parse_req}")
+        logger.info(20 * "=" + f" {self.endpoint.name}.process_request: {parse_req}")
+
+        if self.endpoint.name == "credential":
+            _frontend = self.upstream_get("unit")
+            _srv = _frontend.pick_guise('openid_provider')
+            if not _srv:
+                _srv = _frontend.pick_guise('oauth_authorization_server')
+            # Use that to get the appropriate persistence layer
+            _persistence = _srv.persistence
+            logger.debug("Restore state")
+            _persistence.restore_state(parse_req, http_info)
+
         try:
             proc_req = self.endpoint.process_request(parse_req, http_info=http_info, **kwargs)
             return proc_req
@@ -171,7 +204,7 @@ class EndPointWrapper(object):
                 client_id = context.request.get("client_id")
 
         logger.debug("client_id in request")
-        # Get the none federation_entity type part of this entity
+        # Get the AS part of this entity
         _frontend = self.upstream_get("unit")
         _srv = _frontend.pick_guise('openid_provider')
         if not _srv:
@@ -260,7 +293,7 @@ class EndPointWrapper(object):
         else:
             _jwks = client_info.get("jwks", None)
             if _jwks:
-                _srv.context.keyjar.import_jwks(_jwks, client_id)
+                _srv.context.keyjar = import_jwks(_srv.context.keyjar, _jwks, client_id)
 
         # BUT specs are against!
         # https://openid.net/specs/openid-connect-registration-1_0.html#ReadRequest

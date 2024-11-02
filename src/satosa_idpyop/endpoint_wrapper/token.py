@@ -4,7 +4,6 @@ from idpyoidc.message.oauth2 import TokenErrorResponse
 from idpyoidc.message.oidc import AccessTokenRequest
 from idpyoidc.server.exception import NoSuchGrant
 from idpyoidc.server.exception import UnknownClient
-from openid4v import ServerEntity
 
 from ..core.response import JsonResponse
 from ..endpoint_wrapper import EndPointWrapper
@@ -35,21 +34,7 @@ class TokenEndpointWrapper(EndPointWrapper):
             )
 
         raw_request = AccessTokenRequest(**context.request)
-
-        _unit = self.upstream_get("unit")
-        if isinstance(_unit, ServerEntity):
-            logger.debug("ServerEntity")
-            _guise = _unit
-        else:
-            if self.endpoint.endpoint_type == "oidc":
-                _guise = _unit.pick_guise('openid_provider')
-            else:
-                _guise = _unit.pick_guise('oauth_authority_server')
-
-            if not _guise:
-                logger.error(f"Could not find quise")
-                logger.info(f"Endpoint type: {self.endpoint.endpoint_type}")
-                logger.info(f"Unit: {_unit}")
+        _guise = self.get_guise()
 
         # in token endpoint we cannot parse a request without having loaded cdb and session first
         try:

@@ -3,15 +3,16 @@ import logging
 from typing import Optional
 from typing import Union
 
+from cryptojwt import as_unicode
 from cryptojwt import JWT
 from cryptojwt import KeyBundle
 from cryptojwt import KeyJar
-from cryptojwt import as_unicode
 from cryptojwt.exception import BadSignature
 from cryptojwt.exception import Invalid
 from cryptojwt.exception import MissingKey
 from cryptojwt.jws.jws import factory
 from cryptojwt.utils import as_bytes
+from idpyoidc.key_import import import_jwks
 from idpyoidc.message import Message
 from idpyoidc.message.oidc import JsonWebToken
 from idpyoidc.server.client_authn import basic_authn
@@ -19,6 +20,7 @@ from idpyoidc.server.exception import ClientAuthenticationError
 from idpyoidc.util import sanitize
 from openid4v.message import AuthorizationRequest
 
+from satosa_idpyop.persistence import Persistence
 from satosa_idpyop.utils import combine_client_subject_id
 
 logger = logging.getLogger(__name__)
@@ -26,12 +28,11 @@ logger = logging.getLogger(__name__)
 
 # Doesn't know about ExtendedContext
 
-class OPPersistence(object):
+class OPPersistence(Persistence):
     name = "openid_provider"
 
     def __init__(self, storage, upstream_get):
-        self.storage = storage
-        self.upstream_get = upstream_get
+        super(OPPersistence, self).__init__(storage, upstream_get)
 
     def flush_session_manager(self, session_manager=None):
         """
@@ -52,8 +53,7 @@ class OPPersistence(object):
         jwks_1 = _context.keyjar.export_jwks(private=True, issuer_id="")
         jwks_2 = _context.keyjar.export_jwks(private=True, issuer_id=_context.entity_id)
         keyjar = KeyJar()
-        keyjar.import_jwks(jwks_1, "")
-        keyjar.import_jwks(jwks_2, issuer_id=_context.entity_id)
+        keyjar = import_jwks(keyjar, jwks_1, "")
         unit = self.upstream_get("unit")
         unit.keyjar = keyjar
         _context.keyjar = unit.keyjar
@@ -198,7 +198,7 @@ class OPPersistence(object):
         _context.cdb[client_id] = client_info
         jwks = self.storage.fetch(information_type="jwks", key=client_id)
         if jwks:
-            _context.keyjar.import_jwks(jwks, client_id)
+            _context.keyjar = import_jwks(_context.keyjar, jwks, client_id)
         return client_info
 
     def restore_client_info_by_bearer_token(self, request_authorization: str):
@@ -309,7 +309,7 @@ class OPPersistence(object):
             if jwks:
                 if entity_id == '__':
                     entity_id = ""
-                keyjar.import_jwks(jwks, entity_id)
+                keyjar = import_jwks(keyjar, jwks, entity_id)
                 issuers.add(entity_id)
             else:
                 logger.debug(f"No jwks for {entity_id}")

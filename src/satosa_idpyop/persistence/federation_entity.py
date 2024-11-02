@@ -3,17 +3,19 @@ import logging
 from cryptojwt import KeyJar
 from fedservice.entity_statement.cache import ESCache
 from fedservice.entity_statement.statement import TrustChain
+from idpyoidc.key_import import import_jwks
+
+from satosa_idpyop.persistence import Persistence
 
 logger = logging.getLogger(__name__)
 
 
 # Doesn't know about ExtendedContext
 
-class FEPersistence(object):
+class FEPersistence(Persistence):
 
     def __init__(self, storage, upstream_get):
-        self.storage = storage
-        self.upstream_get = upstream_get
+        super(FEPersistence, self).__init__(storage, upstream_get)
 
     # Below, federation entity stuff
     def store_federation_cache(self):
@@ -59,7 +61,7 @@ class FEPersistence(object):
             if jwks:
                 if entity_id == '__':
                     entity_id = ""
-                keyjar.import_jwks(jwks, entity_id)
+                keyjar = import_jwks(keyjar, jwks, entity_id)
             else:
                 logger.debug(f"No jwks for {entity_id}")
         _guise = self.upstream_get("unit")
