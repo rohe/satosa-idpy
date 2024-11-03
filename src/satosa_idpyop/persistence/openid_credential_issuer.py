@@ -47,11 +47,11 @@ class OCIPersistence(Persistence):
 
     def store_keys(self):
         _entity = self.upstream_get("unit")
-        logger.debug(f"Entity: {_entity.name}")
-        logger.debug(f"Stored keys belonging to: {_entity.context.keyjar.owners()}")
+        logger.debug(f"[OIC_PS] Entity: {_entity.name}")
+        logger.debug(f"[OIC_PS] Stored keys belonging to: {_entity.context.keyjar.owners()}")
         _keyjar = getattr(_entity, 'keyjar')
         if _keyjar:
-            logger.debug(f"Other key owners: {_keyjar.owners()}")
+            logger.debug(f"[OIC_PS] Other key owners: {_keyjar.owners()}")
         for entity_id in _entity.context.keyjar.owners():
             if entity_id == "" or entity_id == _entity.entity_id:
                 jwks = _entity.context.keyjar.export_jwks(private=True, issuer_id=entity_id)
@@ -59,7 +59,7 @@ class OCIPersistence(Persistence):
                     entity_id = "__"
             else:
                 jwks = _entity.context.keyjar.export_jwks(issuer_id=entity_id)
-            logger.debug(f"store entity_id: {entity_id}, jwks: {jwks}")
+            logger.debug(f"[OIC_PS] store entity_id: {entity_id}, jwks: {jwks}")
             self.storage.store(information_type="jwks", key=entity_id, value=jwks)
 
     def restore_keys(self):
@@ -73,7 +73,7 @@ class OCIPersistence(Persistence):
                 keyjar = import_jwks(keyjar, jwks, entity_id)
                 issuers.add(entity_id)
             else:
-                logger.debug(f"No jwks for {entity_id}")
+                logger.debug(f"[OIC_PS] No jwks for {entity_id}")
 
         if keyjar:
             _guise = self.upstream_get("unit")
@@ -99,4 +99,4 @@ class OCIPersistence(Persistence):
                                 kb.append(key)
                             ki_a.add_kb(kb)
 
-            logger.debug(f"Restored keys for these owners: {keyjar.owners()}")
+            logger.debug(f"[OIC_PS] Restored keys for these owners: {keyjar.owners()}")

@@ -65,7 +65,7 @@ class OPPersistence(Persistence):
         try:
             ca_jwt = _jwt.unpack(token)
         except (Invalid, MissingKey, BadSignature) as err:
-            logger.info("%s" % sanitize(err))
+            logger.info("[OP_PS] %s" % sanitize(err))
             raise ClientAuthenticationError("Could not verify client_assertion.")
         return ca_jwt["iss"]
 
@@ -111,7 +111,7 @@ class OPPersistence(Persistence):
         _context = self.upstream_get("context")
         sman = _context.session_manager
         _session_info = self.storage.fetch(information_type="session_info", key="")
-
+        logger.debug("[OP_PS] Fetched session_info: {_session_info}")
         self.flush_session_manager(sman)
         if _session_info:
             sman.load(_session_info)
@@ -124,7 +124,7 @@ class OPPersistence(Persistence):
 
         # Find the client_id
         client_id = self._get_client_id(sman, request=request, http_info=http_info)
-        logger.debug(f"Restore state for {client_id}")
+        logger.debug(f"[OP_PS] Restore state for {client_id}")
         # Update session
         _client_session_info = self.storage.fetch(information_type="client_session_info",
                                                   key=client_id)
@@ -136,7 +136,7 @@ class OPPersistence(Persistence):
 
         self.flush_session_manager(sman)
 
-        logger.debug(f"_session_info: {_session_info}")
+        logger.debug(f"[OP_PS] _session_info: {_session_info}")
         if _session_info:
             sman.load(_session_info)
 
@@ -165,9 +165,9 @@ class OPPersistence(Persistence):
 
     def store_state(self, client_id: Optional[str] = ""):
         if client_id:
-            logger.debug(f"Store state for {client_id}")
+            logger.debug(f"[OP_PS] Store state for {client_id}")
         else:
-            logger.debug(f"Store no client related session information")
+            logger.debug(f"[OP_PS] Store no client related session information")
 
         sman = self.upstream_get("context").session_manager
         _session_state = sman.dump()
@@ -182,7 +182,9 @@ class OPPersistence(Persistence):
         self.store_keys()
 
     def store_client_info(self, client_id):
+        logger.debug(f"[OP_PS] store_client_info: {client_id}")
         _context = self.upstream_get("context")
+        logger.debug(f"Storing client info: {_context.cdb[client_id]}")
         # client info
         self.storage.store(information_type="client_info", key=client_id,
                            value=_context.cdb[client_id])
@@ -193,6 +195,7 @@ class OPPersistence(Persistence):
     def restore_client_info(self, client_id: str) -> dict:
         _context = self.upstream_get("context")
         client_info = self.storage.fetch(information_type="client_info", key=client_id)
+        logger.debug(f"[OP_PS] restore_client_info: '{client_id}'")
         if client_info is None:
             client_info = {}
         _context.cdb[client_id] = client_info
@@ -254,7 +257,7 @@ class OPPersistence(Persistence):
 
         if not claims:
             logger.warning(
-                "Can't find any suitable sid/claims from stored session"
+                "[OP_PS] Can't find any suitable sid/claims from stored session"
             )
 
         # That's a patchy runtime definition of userinfo db configuration
@@ -269,7 +272,7 @@ class OPPersistence(Persistence):
                 _db[k] = v.to_dict()
             else:
                 _db[k] = v
-        logger.debug(f"store_pushed_authorization: {_db}")
+        logger.debug(f"[OP_PS] store_pushed_authorization: {_db}")
         if _db:
             self.storage.store(information_type="par", value=_db)
 
@@ -281,16 +284,16 @@ class OPPersistence(Persistence):
             for _uri, v in _information.items():
                 _par[_uri] = AuthorizationRequest(**v)
 
-            logger.debug(f"restore_pushed_authorization: {_par}")
+            logger.debug(f"[OP_PS] restore_pushed_authorization: {_par}")
             _context.par_db = _par
 
     def store_keys(self):
         _entity = self.upstream_get("unit")
-        logger.debug(f"Entity: {_entity.name}")
-        logger.debug(f"Stored keys belonging to: {_entity.context.keyjar.owners()}")
+        logger.debug(f"[OP_PS] Entity: {_entity.name}")
+        logger.debug(f"[OP_PS]Stored keys belonging to: {_entity.context.keyjar.owners()}")
         _keyjar = getattr(_entity, 'keyjar')
         if _keyjar:
-            logger.debug(f"Other key owners: {_keyjar.owners()}")
+            logger.debug(f"[OP_PS] Other key owners: {_keyjar.owners()}")
         for entity_id in _entity.context.keyjar.owners():
             if entity_id == "" or entity_id == _entity.entity_id:
                 jwks = _entity.context.keyjar.export_jwks(private=True, issuer_id=entity_id)
@@ -298,7 +301,7 @@ class OPPersistence(Persistence):
                     entity_id = "__"
             else:
                 jwks = _entity.context.keyjar.export_jwks(issuer_id=entity_id)
-            logger.debug(f"store entity_id: {entity_id}, jwks: {jwks}")
+            logger.debug(f"[OP_PS] store entity_id: {entity_id}, jwks: {jwks}")
             self.storage.store(information_type="jwks", key=entity_id, value=jwks)
 
     def restore_keys(self):
@@ -312,7 +315,7 @@ class OPPersistence(Persistence):
                 keyjar = import_jwks(keyjar, jwks, entity_id)
                 issuers.add(entity_id)
             else:
-                logger.debug(f"No jwks for {entity_id}")
+                logger.debug(f"[OP_PS] No jwks for {entity_id}")
 
         if keyjar:
             _guise = self.upstream_get("unit")
@@ -338,4 +341,4 @@ class OPPersistence(Persistence):
                                 kb.append(key)
                             ki_a.add_kb(kb)
 
-            logger.debug(f"Restored keys for these owners: {keyjar.owners()}")
+            logger.debug(f"[OP_PS] Restored keys for these owners: {keyjar.owners()}")

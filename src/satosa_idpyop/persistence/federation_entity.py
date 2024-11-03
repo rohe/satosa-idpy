@@ -32,7 +32,7 @@ class FEPersistence(Persistence):
         if _info:
             _cache.load(_info)
         else:
-            logger.debug("No Entity Configurations cached")
+            logger.debug("[FE_PS] No Entity Configurations cached")
         _entity.function.trust_chain_collector.config_cache = _cache
 
         _cache = ESCache()
@@ -40,7 +40,7 @@ class FEPersistence(Persistence):
         if _info:
             _cache.load(_info)
         else:
-            logger.debug("No Entity Statements cached")
+            logger.debug("[FE_PS] No Entity Statements cached")
         _entity.function.trust_chain_collector.entity_statement_cache = _cache
 
     def store_federation_keys(self):
@@ -63,7 +63,7 @@ class FEPersistence(Persistence):
                     entity_id = ""
                 keyjar = import_jwks(keyjar, jwks, entity_id)
             else:
-                logger.debug(f"No jwks for {entity_id}")
+                logger.debug(f"[FE_PS] No jwks for {entity_id}")
         _guise = self.upstream_get("unit")
         # For federation entities the keyjar is in the FederationEntity object
         _guise.keyjar = keyjar
