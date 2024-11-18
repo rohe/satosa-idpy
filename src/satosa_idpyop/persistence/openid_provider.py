@@ -264,31 +264,51 @@ class OPPersistence(Persistence):
         # That's a patchy runtime definition of userinfo db configuration
         _userinfo.load(claims)
 
-    def store_pushed_authorization(self):
-        logger.debug(f"Store pushed authorization")
+    # def store_pushed_authorization(self):
+    #     logger.debug(f"Store pushed authorization")
+    #     _context = self.upstream_get("context")
+    #     par_db = getattr(_context, "par_db", None)
+    #     _db = {}
+    #     for k, v in par_db.items():
+    #         if isinstance(v, Message):
+    #             _db[k] = v.to_dict()
+    #         else:
+    #             _db[k] = v
+    #     logger.debug(f"[OP_PS] store_pushed_authorization: {_db}")
+    #     if _db:
+    #         self.storage.store(information_type="par", value=_db)
+    #
+    # def restore_pushed_authorization(self):
+    #     logger.debug(f"Restore pushed authorization")
+    #     _context = self.upstream_get("context")
+    #     _par = {}
+    #     _information = self.storage.fetch(information_type="par")
+    #     if _information:
+    #         for _uri, v in _information.items():
+    #             _par[_uri] = AuthorizationRequest(**v)
+    #
+    #         logger.debug(f"[OP_PS] restore_pushed_authorization: {_par}")
+    #         _context.par_db = _par
+
+    def store_pushed_authorization(self, uri):
+        logger.debug(f"Store pushed authorization: {uri}")
         _context = self.upstream_get("context")
         par_db = getattr(_context, "par_db", None)
-        _db = {}
-        for k, v in par_db.items():
+        v = par_db.get(uri, None)
+        if v:
             if isinstance(v, Message):
-                _db[k] = v.to_dict()
-            else:
-                _db[k] = v
-        logger.debug(f"[OP_PS] store_pushed_authorization: {_db}")
-        if _db:
-            self.storage.store(information_type="par", value=_db)
+                v = v.to_dict()
 
-    def restore_pushed_authorization(self):
-        logger.debug(f"Restore pushed authorization")
+            logger.debug(f"[OP_PS] store_pushed_authorization ({uri}): {v}")
+            self.storage.store(information_type="par", key=uri, value=v)
+
+    def restore_pushed_authorization(self, uri):
+        logger.debug(f"[OP_PS] Restore pushed authorization: {uri}")
         _context = self.upstream_get("context")
-        _par = {}
-        _information = self.storage.fetch(information_type="par")
+        _information = self.storage.fetch(information_type="par", key=uri)
         if _information:
-            for _uri, v in _information.items():
-                _par[_uri] = AuthorizationRequest(**v)
-
-            logger.debug(f"[OP_PS] restore_pushed_authorization: {_par}")
-            _context.par_db = _par
+            logger.debug(f"[OP_PS] restore_pushed_authorization: {_information}")
+            _context.par_db[uri] = _information
 
     def store_keys(self):
         _entity = self.upstream_get("unit")
