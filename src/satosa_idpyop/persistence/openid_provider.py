@@ -265,6 +265,7 @@ class OPPersistence(Persistence):
         _userinfo.load(claims)
 
     def store_pushed_authorization(self):
+        logger.debug(f"Store pushed authorization")
         _context = self.upstream_get("context")
         par_db = getattr(_context, "par_db", None)
         _db = {}
@@ -278,6 +279,7 @@ class OPPersistence(Persistence):
             self.storage.store(information_type="par", value=_db)
 
     def restore_pushed_authorization(self):
+        logger.debug(f"Restore pushed authorization")
         _context = self.upstream_get("context")
         _par = {}
         _information = self.storage.fetch(information_type="par")
