@@ -108,10 +108,11 @@ class OPPersistence(Persistence):
         return None
 
     def restore_session_info(self):
+        logger.debug(f"[OP_PS] Restore general session info")
         _context = self.upstream_get("context")
         sman = _context.session_manager
         _session_info = self.storage.fetch(information_type="session_info", key="")
-        logger.debug("[OP_PS] Fetched session_info: {_session_info}")
+        logger.debug(f"[OP_PS] Fetched session_info: {_session_info}")
         self.flush_session_manager(sman)
         if _session_info:
             sman.load(_session_info)
@@ -124,7 +125,7 @@ class OPPersistence(Persistence):
 
         # Find the client_id
         client_id = self._get_client_id(sman, request=request, http_info=http_info)
-        logger.debug(f"[OP_PS] Restore state for {client_id}")
+        logger.debug(f"[OP_PS] Restore state for '{client_id}'")
         # Update session
         _client_session_info = self.storage.fetch(information_type="client_session_info",
                                                   key=client_id)
@@ -185,7 +186,7 @@ class OPPersistence(Persistence):
         logger.debug(f"[OP_PS] store_client_info: {client_id}")
         _context = self.upstream_get("context")
         logger.debug(f"Storing client info: {_context.cdb[client_id]}")
-        # client info
+        # client info?
         self.storage.store(information_type="client_info", key=client_id,
                            value=_context.cdb[client_id])
         # client keys
@@ -193,9 +194,9 @@ class OPPersistence(Persistence):
                            value=_context.keyjar.export_jwks(issuer=client_id))
 
     def restore_client_info(self, client_id: str) -> dict:
+        logger.debug(f"[OP_PS] restore_client_info: '{client_id}'")
         _context = self.upstream_get("context")
         client_info = self.storage.fetch(information_type="client_info", key=client_id)
-        logger.debug(f"[OP_PS] restore_client_info: '{client_id}'")
         if client_info is None:
             client_info = {}
         _context.cdb[client_id] = client_info

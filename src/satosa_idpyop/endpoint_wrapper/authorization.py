@@ -98,7 +98,10 @@ class AuthorizationEndpointWrapper(EndPointWrapper):
         client_id = parse_req.get("client_id")
 
         _entity_type = self.upstream_get("attribute", "entity_type")
-        _entity_type.persistence.restore_state(parse_req, http_info)
+        # There is no client specific session info at this time so just restore
+        # general session info and client info
+        _entity_type.persistence.restore_session_info()
+        _entity_type.persistence.restore_client_info(client_id)
         # _entity_type.persistence.load_claims(client_id)
 
         context.state[self.endpoint.name] = {"oidc_request": context.request}
@@ -231,6 +234,9 @@ class AuthorizationEndpointWrapper(EndPointWrapper):
             "response_placement", self.endpoint.response_placement
         )
         if _response_placement == "url":
+            # persist the session info
+            self.entity_type.persistence.store_state(client_id)
+
             data = _args["response_args"].to_dict()
             url_components = urlparse(info_response)
             original_params = parse_qs(url_components.query)
