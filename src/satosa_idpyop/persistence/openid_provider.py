@@ -18,7 +18,6 @@ from idpyoidc.message.oidc import JsonWebToken
 from idpyoidc.server.client_authn import basic_authn
 from idpyoidc.server.exception import ClientAuthenticationError
 from idpyoidc.util import sanitize
-from openid4v.message import AuthorizationRequest
 
 from satosa_idpyop.persistence import Persistence
 from satosa_idpyop.utils import combine_client_subject_id
@@ -290,7 +289,7 @@ class OPPersistence(Persistence):
     #         logger.debug(f"[OP_PS] restore_pushed_authorization: {_par}")
     #         _context.par_db = _par
 
-    def store_pushed_authorization(self, uri):
+    def store_pushed_authorization(self, uri: str):
         logger.debug(f"Store pushed authorization: {uri}")
         _context = self.upstream_get("context")
         par_db = getattr(_context, "par_db", None)

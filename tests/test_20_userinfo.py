@@ -200,8 +200,13 @@ class TestFrontEnd():
 
         func = self._find_endpoint(frontend, "authorization")
 
+        # All the federation stuff should be cached
         where_and_what = create_trust_chain_messages(self.entity["relying_party"],
                                                      self.entity["trust_anchor"])
+
+        del where_and_what['https://rp.example.org/.well-known/openid-federation']
+        del where_and_what['https://ta.example.org/.well-known/openid-federation']
+        del where_and_what['https://ta.example.org/fetch']
 
         with responses.RequestsMock() as rsps:
             for _url, _jwks in where_and_what.items():

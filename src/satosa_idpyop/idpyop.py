@@ -203,11 +203,18 @@ class IdpyOPFrontend(FrontendModule, IdpyOPEndpoints):
             logger.exception(excp)
             return self.handle_error(excp=excp)
 
+        if "error" in _args:
+            logger.error(_args)
+            return self.handle_error(_args)
+
         logger.debug(f"authz_part2 args: {_args}")
 
+        if "response_args" in _args:
+            logger.debug(f"authz_part2 response args: {_args['response_args'].to_dict()}")
+
         if isinstance(_args, ResponseMessage) and "error" in _args:
-            self.clean_up()  # pragma: no cover
-            return JsonResponse(_args, status="403")
+            logger.error(_args)
+            return self.handle_error(msg=str(_args))
         elif isinstance(_args.get("response_args"), AuthorizationErrorResponse):  # pragma: no cover
             rargs = _args.get("response_args")
             logger.error(rargs)

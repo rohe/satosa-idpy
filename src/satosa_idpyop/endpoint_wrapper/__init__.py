@@ -150,7 +150,7 @@ class EndPointWrapper(object):
 
     def do_response(self, response_args: Optional[dict] = None, request: Optional[dict] = None,
                     **kwargs):
-        logger.info(f"In {self.endpoint.name}.do_response: {response_args.__dict__}")
+        logger.info(f"In {self.endpoint.name}.do_response")
         try:
             return self.endpoint.do_response(response_args=response_args, request=request, **kwargs)
         except Exception as err:  # pragma: no cover
@@ -166,7 +166,7 @@ class EndPointWrapper(object):
             return response
 
     def log_request(self, context: ExtendedContext, msg: str, level: Optional[str] = "info"):
-        _msg = f"{msg}: {context.request}"
+        _msg = 20*"=" + f"{msg}: {context.request}" + 20*"="
         logline = lu.LOG_FMT.format(
             id=lu.get_session_id(context.state), message=_msg)
         getattr(logger, level)(logline)

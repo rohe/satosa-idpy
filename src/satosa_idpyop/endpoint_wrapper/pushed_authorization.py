@@ -35,7 +35,7 @@ class PushedAuthorizationEndpointWrapper(EndPointWrapper):
 
         # The only thing that should have changed on the application side
         _entity_type.persistence.store_client_info(parse_req["client_id"])
-        _entity_type.persistence.store_pushed_authorization()
+        _entity_type.persistence.store_pushed_authorization(_http_info["url"])
         # Also on the federation side
         _fed_entity = self.upstream_get("federation_entity")
         _fed_entity.persistence.store_state()

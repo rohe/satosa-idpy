@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+
+
+<html>
+<head>
+    <title>The Trust Anchor</title>
+</head>
+<body>
+<h1>I'm the trust anchor for a little federation, these are my subordinates:</h1>
+<dl>
+    {% for key, metadata in subordinates.items() %}
+    <dt><b>{{ key }}</b></dt>
+    <dd>{% for attr, value in metadata.items() %}
+        <dl>
+            <dt><i>{{attr}}</i></dt>
+            <dd>{{value}}</dd>
+        </dl>
+        {% endfor %}
+    </dd>
+    <hr>
+    {% endfor %}
+</dl>
+</body>
+</html>

@@ -1,0 +1,250 @@
+module: satosa_idpyop.idpyop.IdpyOPFrontend
+name: OIDC
+
+config:
+  domain: &domain localhost
+  server_name: *domain
+  base_url: &base_url <base_url>
+  default_target_backend: oidc
+  salt_size: 8
+
+  op:
+    server_info:
+      entity_id: *base_url
+      persistence:
+        class: satosa_idpyop.persistence.federation_entity.FEPersistence
+        kwargs:
+          storage:
+            class: satosa_idpyop.core.storage.file.FilesystemDBNoCache
+            kwargs:
+              fdir: fe_storage
+              key_conv: idpyoidc.util.Base64
+              value_conv: idpyoidc.util.JSON
+      key_config:
+        key_defs:
+          -
+            type: RSA
+            use:
+              - sig
+          -
+            type: EC
+            crv: P-256
+            use:
+              - sig
+        private_path: private/fed_keys.json
+        public_path: public/fed_keys.json
+        read_only: false
+      preference:
+        organization_name: The OP operator
+        contacts: operations@op.example.com
+      authority_hints:
+        - https://127.0.0.1:7003
+      endpoints:
+        entity_configuration:
+          path: ".well-known/openid-federation"
+          class: 'fedservice.entity.server.entity_configuration.EntityConfiguration'
+      trust_anchors:
+        https://127.0.0.1:7003:
+          keys:
+          - e: AQAB
+            kid: ZXFYbDlqWkNzaWd1eDNseTVfWFBNUWRFX3lrQ2Y3b2owaWVMTjNhcnpBMA
+            kty: RSA
+            n: qHE53SwNAYWZfLQufshE5vhJDBzAEgdO762SkGcV59GDx2VZIyoSek3Y8X8_Z6pVGeDovBQCBstwD7X4ZL4ynMsGb_Szphx2dlcvYPHfY4BFJWGoROPzo8VJ-z5CLseHKg_LXL-PxTHziZFBawMJn5vTodRQVJIU_WA5K408WuNgBh_IhkTj37L-fajwExYoPMWu-YMNlUWD8ta_hnHxLE43QZW5shq09LcTj9VcJdWey1i4q_ftHoZsFngML-kA8KBImeiirtCHs6V1eA3LxJ5a_KojK7aPcA9VgvPH1987I4gqHFedtLZkV5dewYt4HGQ4O3YQ8IsX1Nse0ib2Sw
+            use: sig
+          - crv: P-256
+            kid: Nng1Yy1SMmFoRC1VQ2g4NllXSEU1dEtkY0VkX3pweG5RXzdLMjY1WkJNMA
+            kty: EC
+            use: sig
+            x: yLcidWumqjOPjJI1OcSjgTtqmOfNzC0APWKdRIFik3Y
+            y: 8IkDqyQyLHB10Klvz7vJIb6jrlJ_-HDgMGusR_JzckE
+      httpc_params:
+        verify: false
+        timeout: 14
+      entity_type:
+        openid_provider:
+          class: fedservice.appserver.ServerEntity
+          kwargs:
+            config:
+              client_authn_methods:
+                client_secret_jwt: idpyoidc.server.client_authn.ClientSecretJWT
+                private_key_jwt: idpyoidc.server.client_authn.PrivateKeyJWT
+                client_secret_basic: idpyoidc.server.client_authn.ClientSecretBasic
+                client_secret_post: idpyoidc.server.client_authn.ClientSecretPost
+                dpop_client_auth: idpyoidc.server.oauth2.add_on.dpop.DPoPClientAuth
+                request_param: idpyoidc.server.client_authn.RequestParam
+                pushed_authz: idpyoidc.server.client_authn.PushedAuthorization
+              httpc_params:
+                verify: false
+                timeout: 12
+              persistence:
+                class: satosa_idpyop.persistence.openid_provider.OPPersistence
+                kwargs:
+                  storage:
+                    class: satosa_idpyop.core.storage.file.FilesystemDBNoCache
+                    kwargs:
+                      fdir: op_storage
+                      key_conv: idpyoidc.util.Base64
+                      value_conv: idpyoidc.util.JSON
+              preference:
+                response_types_supported:
+                  - code
+                  - "code id_token"
+                  - id_token
+                grant_types_supported:
+                  - authorization_code
+                  - implicit
+                  - urn:ietf:params:oauth:grant-type:jwt-bearer
+                  - refresh_token
+                request_authentication_methods_supported:
+                    authorization_endpoint:
+                      - request_object
+                request_authentication_signing_alg_values_supported:
+                  - RS256
+                  - RS384
+                  - RS512
+                  - ES256
+                  - ES256K
+                  - ES384
+                  - ES512
+              server_type: oidc
+              token_handler_args:
+                jwks_def:
+                  private_path: private/token_jwks.json
+                  read_only: false
+                  key_defs:
+                    -
+                      type: oct
+                      bytes: 24
+                      use:
+                        - enc
+                      kid: code
+                code:
+                  lifetime: 600
+                  kwargs:
+                    crypt_conf:
+                      kwargs:
+                        key: "0987654321abcdefghijklmnop...---"
+                        salt: "abcdefghijklmnop"
+                        iterations: 1
+                token:
+                  class: idpyoidc.server.token.jwt_token.JWTToken
+                  kwargs:
+                    lifetime: 3600
+                    add_claims_by_scope: true
+                refresh:
+                  class: idpyoidc.server.token.jwt_token.JWTToken
+                  kwargs:
+                    lifetime: 3600
+                id_token:
+                  class: idpyoidc.server.token.id_token.IDToken
+                  kwargs:
+                    base_claims:
+                      email:
+                        essential: true
+                      email_verified:
+                        essential: true
+              keys:
+                key_defs:
+                  -
+                    type: RSA
+                    use:
+                      - sig
+                  -
+                    type: EC
+                    crv: P-256
+                    use:
+                      - sig
+                uri_path: jwks/oauth_authorization_server
+                private_path: private/oa_jwks.json
+                read_only: false
+              endpoint:
+                registration:
+                  path: registration
+                  class: fedservice.appserver.oidc.registration.Registration
+                authorization:
+                  path: authorization
+                  class:
+                    fedservice.appserver.oidc.authorization.Authorization
+                token:
+                  path: token
+                  class: idpyoidc.server.oidc.token.Token
+                  kwargs:
+                    client_authn_method:
+                      - client_secret_post
+                      - client_secret_basic
+                      - client_secret_jwt
+                      - private_key_jwt
+                userinfo:
+                  path: userinfo
+                  class: idpyoidc.server.oidc.userinfo.UserInfo
+                  kwargs:
+                    claim_types_supported:
+                      - normal
+                      - aggregated
+                      - distributed
+              add_ons:
+                pkce:
+                  function: idpyoidc.server.oauth2.add_on.pkce.add_support
+                  kwargs:
+                    code_challenge_length: 64
+                    code_challenge_method: S256
+                dpop:
+                  function: idpyoidc.server.oauth2.add_on.dpop.add_support
+                  kwargs:
+                    dpop_signing_alg_values_supported:
+                      - ES256
+                    dpop_endpoints:
+                      - token
+                      - userinfo
+              template_dir: template
+              authentication:
+                anon:
+                  acr: http://www.swamid.se/policy/assurance/al1
+                  class: idpyoidc.server.user_authn.user.NoAuthn
+                  kwargs:
+                    user: diana
+              authz:
+                class: idpyoidc.server.authz.AuthzHandling
+                kwargs:
+                  grant_config:
+                    usage_rules:
+                      authorization_code:
+                        supports_minting:
+                          - access_token
+                          - refresh_token
+                          - id_token
+                        max_usage: 1
+                      access_token: { }
+                      refresh_token:
+                        supports_minting:
+                          - access_token
+                          - refresh_token
+                          - id_token
+                    expires_in: 43200
+              session_params:
+                encrypter:
+                  kwargs:
+                    iterations: 1
+                    keys:
+                      key_defs:
+                        -
+                          kid: password
+                          type: OCT
+                          use:
+                            - enc
+                        -
+                          kid: salt
+                          type: OCT
+                          use:
+                            - enc
+              userinfo:
+                class: satosa_idpyop.user_info.PassThruUserInfo
+                kwargs:
+                    attributes:
+                      - email
+                      - address.streetaddress
+                      - sub
+                      - name
+                      - family_name
+                      - given_name
+                      - nickname
